@@ -6,6 +6,7 @@
 #include "settingswidget.h"
 
 #include <QLinearGradient>
+#include <QRadialGradient>
 #include <QPushButton>
 
 Translate::Translate(QWidget *parent)
@@ -57,12 +58,23 @@ void Translate::paintEvent(QPaintEvent *event)
     QRectF rect = this->rect().adjusted(1, 1, -1, -1);
     path.addRoundedRect(rect, 22, 22);
 
+    // Frosted glass style: translucent base + soft light spots.
     QLinearGradient gradient(rect.topLeft(), rect.bottomRight());
-    gradient.setColorAt(0.0, QColor(17, 33, 56, 168));
-    gradient.setColorAt(1.0, QColor(35, 53, 83, 168));
+    gradient.setColorAt(0.0, QColor(205, 214, 228, 122));
+    gradient.setColorAt(1.0, QColor(168, 180, 200, 122));
     painter.fillPath(path, gradient);
 
-    painter.setPen(QPen(QColor(120, 150, 190, 120), 1));
+    QRadialGradient glow1(QPointF(rect.width() * 0.2, rect.height() * 0.1), rect.width() * 0.7);
+    glow1.setColorAt(0.0, QColor(255, 255, 255, 65));
+    glow1.setColorAt(1.0, QColor(255, 255, 255, 0));
+    painter.fillPath(path, glow1);
+
+    QRadialGradient glow2(QPointF(rect.width() * 0.85, rect.height() * 0.85), rect.width() * 0.5);
+    glow2.setColorAt(0.0, QColor(255, 255, 255, 35));
+    glow2.setColorAt(1.0, QColor(255, 255, 255, 0));
+    painter.fillPath(path, glow2);
+
+    painter.setPen(QPen(QColor(235, 239, 245, 130), 1));
     painter.drawPath(path);
 }
 
@@ -234,15 +246,24 @@ void Translate::applyDialogStyle()
         "  background: transparent;"
         "}"
         "QComboBox, QLineEdit {"
-        "  background: rgba(245, 248, 255, 0.92);"
-        "  color: #1E293B;"
-        "  border: 1px solid rgba(155, 177, 210, 0.7);"
+        "  background: rgba(245, 246, 248, 0.95);"
+        "  color: #2B2F35;"
+        "  border: 1px solid rgba(178, 184, 194, 0.9);"
         "  border-radius: 10px;"
         "  padding: 5px 10px;"
-        "  selection-background-color: #4D7CCC;"
+        "  selection-background-color: rgba(202, 209, 220, 0.95);"
+        "  selection-color: #1F2329;"
         "}"
         "QComboBox {"
         "  padding-right: 26px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "  background: #FFFFFF;"
+        "  color: #22262D;"
+        "  border: 1px solid #C8CED8;"
+        "  outline: 0px;"
+        "  selection-background-color: #E9EDF3;"
+        "  selection-color: #1C2128;"
         "}"
         "QComboBox::drop-down {"
         "  subcontrol-origin: padding;"
@@ -257,24 +278,24 @@ void Translate::applyDialogStyle()
         "  height: 0px;"
         "  border-left: 5px solid transparent;"
         "  border-right: 5px solid transparent;"
-        "  border-top: 7px solid #33425B;"
+        "  border-top: 7px solid #565E69;"
         "  margin-right: 6px;"
         "}"
         "QLineEdit:read-only {"
-        "  background: rgba(230, 240, 255, 0.88);"
+        "  background: rgba(236, 239, 244, 0.96);"
         "}"
         "QPushButton {"
-        "  background: rgba(235, 243, 255, 0.9);"
-        "  color: #11345A;"
-        "  border: 1px solid rgba(110, 145, 190, 0.7);"
+        "  background: rgba(237, 239, 243, 0.95);"
+        "  color: #3A4048;"
+        "  border: 1px solid rgba(176, 182, 191, 0.9);"
         "  border-radius: 10px;"
         "  padding: 4px 8px;"
         "}"
         "QPushButton:hover {"
-        "  background: rgba(255, 255, 255, 0.98);"
+        "  background: rgba(248, 249, 251, 0.98);"
         "}"
         "QPushButton:pressed {"
-        "  background: rgba(210, 226, 250, 0.95);"
+        "  background: rgba(221, 226, 233, 0.98);"
         "}"
     );
 }
