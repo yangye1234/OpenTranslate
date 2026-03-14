@@ -17,6 +17,7 @@ AppConfig ConfigStore::load()
     QSettings settings("OpenTranslate", "OpenTranslate");
 
     AppConfig config;
+    config.shortcuts = defaultShortcutsForCurrentPlatform();
     config.baidu.appId = settings.value("baidu/appId").toString();
     config.baidu.appKey = settings.value("baidu/appKey").toString();
     config.baidu.enabled = settings.value("baidu/enabled", true).toBool();
@@ -29,6 +30,19 @@ AppConfig ConfigStore::load()
 
     config.activeProvider = static_cast<ProviderType>(settings.value("provider/active", 0).toInt());
     config.appLanguage = static_cast<AppLanguage>(settings.value("app/language", 1).toInt());
+    config.shortcuts.swapLanguage = settings.value("shortcuts/swap", config.shortcuts.swapLanguage).toString();
+    config.shortcuts.toggleOnTop = settings.value("shortcuts/pin", config.shortcuts.toggleOnTop).toString();
+    config.shortcuts.openSettings = settings.value("shortcuts/settings", config.shortcuts.openSettings).toString();
+
+    if (config.shortcuts.swapLanguage.trimmed().isEmpty()) {
+        config.shortcuts.swapLanguage = defaultShortcutsForCurrentPlatform().swapLanguage;
+    }
+    if (config.shortcuts.toggleOnTop.trimmed().isEmpty()) {
+        config.shortcuts.toggleOnTop = defaultShortcutsForCurrentPlatform().toggleOnTop;
+    }
+    if (config.shortcuts.openSettings.trimmed().isEmpty()) {
+        config.shortcuts.openSettings = defaultShortcutsForCurrentPlatform().openSettings;
+    }
 
     QStringList pairs = settings.value("languages/pairs").toStringList();
     if (pairs.isEmpty()) {
@@ -57,6 +71,9 @@ void ConfigStore::save(const AppConfig &config)
 
     settings.setValue("provider/active", static_cast<int>(config.activeProvider));
     settings.setValue("app/language", static_cast<int>(config.appLanguage));
+    settings.setValue("shortcuts/swap", config.shortcuts.swapLanguage);
+    settings.setValue("shortcuts/pin", config.shortcuts.toggleOnTop);
+    settings.setValue("shortcuts/settings", config.shortcuts.openSettings);
     settings.setValue("languages/pairs", normalizedPairs(config.languagePairs));
 }
 

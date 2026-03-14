@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QtGlobal>
 
 enum class ProviderType {
     Baidu = 0,
@@ -29,9 +30,27 @@ struct GenericApiConfig {
     bool enabled = false;
 };
 
+struct ShortcutConfig {
+    QString swapLanguage;
+    QString toggleOnTop;
+    QString openSettings;
+};
+
+inline ShortcutConfig defaultShortcutsForCurrentPlatform()
+{
+#if defined(Q_OS_MACOS)
+    return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Meta+,"};
+#elif defined(Q_OS_WIN)
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,"};
+#else
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,"};
+#endif
+}
+
 struct AppConfig {
     BaiduConfig baidu;
     GenericApiConfig generic;
+    ShortcutConfig shortcuts = defaultShortcutsForCurrentPlatform();
     QStringList languagePairs;
     ProviderType activeProvider = ProviderType::Baidu;
     AppLanguage appLanguage = AppLanguage::SimplifiedChinese;

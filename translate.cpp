@@ -5,6 +5,7 @@
 #include "l10n.h"
 #include "settingswidget.h"
 
+#include <QHotkey>
 #include <QFrame>
 #include <QLinearGradient>
 #include <QListView>
@@ -16,6 +17,9 @@ Translate::Translate(QWidget *parent)
     , m_dragPosition(0, 0)
     , m_settingsWidget(nullptr)
     , m_baiduService(new BaiduTranslatorService(this))
+    , m_swapHotkey(nullptr)
+    , m_pinHotkey(nullptr)
+    , m_settingsHotkey(nullptr)
     , m_isTranslating(false)
 {
     ui->setupUi(this);
@@ -60,10 +64,12 @@ Translate::Translate(QWidget *parent)
     applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
+    applyShortcuts(m_config.shortcuts);
 }
 
 Translate::~Translate()
 {
+    unregisterGlobalHotkeys();
     delete ui;
 }
 
@@ -140,6 +146,7 @@ void Translate::onConfigSaved(const AppConfig &config)
     applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
+    applyShortcuts(m_config.shortcuts);
 }
 
 void Translate::reloadLanguagePairs()
@@ -317,4 +324,49 @@ void Translate::applyDialogStyle()
         "  background: rgba(184, 190, 199, 0.98);"
         "}"
     );
+}
+
+void Translate::applyShortcuts(const ShortcutConfig &shortcuts)
+{
+    unregisterGlobalHotkeys();
+    registerGlobalHotkeys(shortcuts);
+}
+
+void Translate::unregisterGlobalHotkeys()
+{
+    auto cleanup = [](QHotkey *&hotkey) {
+        if (!hotkey) {
+            return;
+        }
+        hotkey->setRegistered(false);
+        delete hotkey;
+        hotkey = nullptr;
+    };
+    cleanup(m_swapHotkey);
+    cleanup(m_pinHotkey);
+    cleanup(m_settingsHotkey);
+}
+
+void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
+{
+    auto buildSequence = [](const QString &shortcut) {
+        return QKeySequence::fromString(shortcut, QKeySequence::PortableText);
+    };
+
+    const QKeySequence swapSequence = buildSequence(shortcuts.swapLanguage);
+    const QKeySequence pinSequence = buildSequence(shortcuts.toggleOnTop);
+    const QKeySequence settingsSequence = buildSequence(shortcuts.openSettings);
+
+    if (!swapSequence.isEmpty()) {
+        m_swapHotkey = new QHotkey(swapSequence, true, this);
+        connect(m_swapHotkey, &QHotkey::activated, this, &Translate::swapLanguagePair);
+    }
+    if (!pinSequence.isEmpty()) {
+        m_pinHotkey = new QHotkey(pinSequence, true, this);
+        connect(m_pinHotkey, &QHotkey::activated, this, &Translate::toggleStayOnTop);
+    }
+    if (!settingsSequence.isEmpty()) {
+        m_settingsHotkey = new QHotkey(settingsSequence, true, this);
+        connect(m_settingsHotkey, &QHotkey::activated, this, &Translate::openSettings);
+    }
 }

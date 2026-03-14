@@ -3,12 +3,16 @@
 #include "l10n.h"
 
 #include <QComboBox>
+#include <QKeySequenceEdit>
 #include <QMessageBox>
+#include <QSet>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::SettingsWidget)
     , m_uiLanguage(AppLanguage::SimplifiedChinese)
+    , m_isDirty(false)
+    , m_isLoading(false)
 {
     ui->setupUi(this);
     setupLanguageOptions();
@@ -23,6 +27,9 @@ SettingsWidget::SettingsWidget(QWidget *parent)
             qOverload<int>(&QComboBox::currentIndexChanged),
             this,
             &SettingsWidget::onAppLanguageChanged);
+
+    setupDirtyTracking();
+    setDirty(false);
 }
 
 SettingsWidget::~SettingsWidget()
@@ -32,6 +39,8 @@ SettingsWidget::~SettingsWidget()
 
 void SettingsWidget::setConfig(const AppConfig &config)
 {
+    m_isLoading = true;
+
     ui->baiduEnabled->setChecked(config.baidu.enabled);
     ui->baiduAppId->setText(config.baidu.appId);
     ui->baiduAppKey->setText(config.baidu.appKey);
@@ -41,12 +50,35 @@ void SettingsWidget::setConfig(const AppConfig &config)
     ui->genericModel->setText(config.generic.model);
     ui->genericApiKey->setText(config.generic.apiKey);
     ui->genericPrompt->setPlainText(config.generic.promptTemplate);
+
     ui->appLanguageCombo->setCurrentIndex(static_cast<int>(config.appLanguage));
     m_uiLanguage = config.appLanguage;
-    applyLanguage(m_uiLanguage);
 
+    ShortcutConfig shortcuts = config.shortcuts;
+    const ShortcutConfig defaults = defaultShortcutsForCurrentPlatform();
+    if (shortcuts.swapLanguage.trimmed().isEmpty()) {
+        shortcuts.swapLanguage = defaults.swapLanguage;
+    }
+    if (shortcuts.toggleOnTop.trimmed().isEmpty()) {
+        shortcuts.toggleOnTop = defaults.toggleOnTop;
+    }
+    if (shortcuts.openSettings.trimmed().isEmpty()) {
+        shortcuts.openSettings = defaults.openSettings;
+    }
+
+    ui->swapShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.swapLanguage,
+                                                                    QKeySequence::PortableText));
+    ui->pinShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.toggleOnTop,
+                                                                  QKeySequence::PortableText));
+    ui->settingsShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.openSettings,
+                                                                       QKeySequence::PortableText));
+
+    applyLanguage(m_uiLanguage);
     refreshPairList(config.languagePairs);
     ui->pairEdit->clear();
+
+    m_isLoading = false;
+    setDirty(false);
 }
 
 void SettingsWidget::onAddPairClicked()
@@ -70,6 +102,7 @@ void SettingsWidget::onAddPairClicked()
 
     ui->pairList->addItem(pair);
     ui->pairEdit->clear();
+    setDirty(true);
 }
 
 void SettingsWidget::onRemovePairClicked()
@@ -79,6 +112,7 @@ void SettingsWidget::onRemovePairClicked()
         ui->pairList->addItem("en->zh");
         ui->pairList->addItem("zh->en");
     }
+    setDirty(true);
 }
 
 void SettingsWidget::onLanguagePairEdited()
@@ -108,6 +142,7 @@ void SettingsWidget::onLanguagePairEdited()
 
     item->setText(pair);
     ui->pairEdit->clear();
+    setDirty(true);
 }
 
 void SettingsWidget::onSaveClicked()
@@ -127,13 +162,49 @@ void SettingsWidget::onSaveClicked()
     config.languagePairs = currentPairs();
     config.appLanguage = static_cast<AppLanguage>(ui->appLanguageCombo->currentIndex());
 
+    const ShortcutConfig defaults = defaultShortcutsForCurrentPlatform();
+    auto toPortable = [](const QKeySequence &seq) {
+        return seq.toString(QKeySequence::PortableText).trimmed();
+    };
+
+    config.shortcuts.swapLanguage = toPortable(ui->swapShortcutEdit->keySequence());
+    config.shortcuts.toggleOnTop = toPortable(ui->pinShortcutEdit->keySequence());
+    config.shortcuts.openSettings = toPortable(ui->settingsShortcutEdit->keySequence());
+
+    if (config.shortcuts.swapLanguage.isEmpty()) {
+        config.shortcuts.swapLanguage = defaults.swapLanguage;
+    }
+    if (config.shortcuts.toggleOnTop.isEmpty()) {
+        config.shortcuts.toggleOnTop = defaults.toggleOnTop;
+    }
+    if (config.shortcuts.openSettings.isEmpty()) {
+        config.shortcuts.openSettings = defaults.openSettings;
+    }
+
+    if (hasShortcutConflict(config.shortcuts)) {
+        QMessageBox::warning(this,
+                             L10n::text(m_uiLanguage, "settings.error.shortcut_conflict.title"),
+                             L10n::text(m_uiLanguage, "settings.error.shortcut_conflict.body"));
+        return;
+    }
+
     emit configSaved(config);
+    setDirty(false);
 }
 
 void SettingsWidget::onAppLanguageChanged(int index)
 {
     m_uiLanguage = static_cast<AppLanguage>(index);
     applyLanguage(m_uiLanguage);
+    onAnySettingChanged();
+}
+
+void SettingsWidget::onAnySettingChanged()
+{
+    if (m_isLoading) {
+        return;
+    }
+    setDirty(true);
 }
 
 QString SettingsWidget::normalizePair(const QString &pair)
@@ -180,6 +251,12 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     setWindowTitle(L10n::text(language, "settings.title"));
     ui->appGroup->setTitle(L10n::text(language, "settings.group.app"));
     ui->labelAppLanguage->setText(L10n::text(language, "settings.label.app_language"));
+
+    ui->shortcutsGroup->setTitle(L10n::text(language, "settings.group.shortcuts"));
+    ui->labelSwapShortcut->setText(L10n::text(language, "settings.shortcuts.swap"));
+    ui->labelPinShortcut->setText(L10n::text(language, "settings.shortcuts.pin"));
+    ui->labelSettingsShortcut->setText(L10n::text(language, "settings.shortcuts.settings"));
+
     ui->baiduGroup->setTitle(L10n::text(language, "settings.group.baidu"));
     ui->baiduEnabled->setText(L10n::text(language, "settings.baidu.enabled"));
     ui->labelBaiduAppId->setText(L10n::text(language, "settings.baidu.app_id"));
@@ -197,7 +274,8 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     ui->addPairButton->setText(L10n::text(language, "settings.pairs.add"));
     ui->editPairButton->setText(L10n::text(language, "settings.pairs.edit"));
     ui->removePairButton->setText(L10n::text(language, "settings.pairs.remove"));
-    ui->saveButton->setText(L10n::text(language, "settings.save"));
+
+    updateSaveButtonText();
 }
 
 void SettingsWidget::setupLanguageOptions()
@@ -206,4 +284,69 @@ void SettingsWidget::setupLanguageOptions()
     ui->appLanguageCombo->addItem(L10n::text(AppLanguage::English, "language.english"));
     ui->appLanguageCombo->addItem(L10n::text(AppLanguage::SimplifiedChinese, "language.zh_cn"));
     ui->appLanguageCombo->addItem(L10n::text(AppLanguage::TraditionalChinese, "language.zh_tw"));
+}
+
+void SettingsWidget::setDirty(bool dirty)
+{
+    m_isDirty = dirty;
+    updateSaveButtonText();
+}
+
+void SettingsWidget::updateSaveButtonText()
+{
+    ui->saveButton->setText(L10n::text(m_uiLanguage, m_isDirty ? "settings.save" : "settings.saved"));
+}
+
+void SettingsWidget::setupDirtyTracking()
+{
+    connect(ui->baiduEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->baiduAppId, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->baiduAppKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+
+    connect(ui->genericEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->genericBaseUrl, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->genericModel, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->genericApiKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->genericPrompt, &QPlainTextEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+
+    connect(ui->pairEdit, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(ui->swapShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
+    connect(ui->pinShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
+    connect(ui->settingsShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
+}
+
+bool SettingsWidget::hasShortcutConflict(const ShortcutConfig &shortcuts)
+{
+    auto canonical = [](const QString &shortcut) {
+        return QKeySequence::fromString(shortcut, QKeySequence::PortableText)
+            .toString(QKeySequence::PortableText)
+            .trimmed();
+    };
+
+    QSet<QString> seen;
+    const QStringList values = {
+        canonical(shortcuts.swapLanguage),
+        canonical(shortcuts.toggleOnTop),
+        canonical(shortcuts.openSettings)
+    };
+
+    for (const QString &value : values) {
+        if (value.isEmpty()) {
+            continue;
+        }
+        if (seen.contains(value)) {
+            return true;
+        }
+        seen.insert(value);
+    }
+    return false;
 }

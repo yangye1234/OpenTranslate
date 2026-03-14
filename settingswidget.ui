@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>560</width>
-    <height>520</height>
+    <height>640</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,6 +29,45 @@
       </item>
       <item row="0" column="1">
        <widget class="QComboBox" name="appLanguageCombo"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="shortcutsGroup">
+     <property name="title">
+      <string>Shortcuts</string>
+     </property>
+     <layout class="QFormLayout" name="formLayoutShortcuts">
+      <item row="0" column="0">
+       <widget class="QLabel" name="labelSwapShortcut">
+        <property name="text">
+         <string>Swap Language</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QKeySequenceEdit" name="swapShortcutEdit"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelPinShortcut">
+        <property name="text">
+         <string>Toggle On Top</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QKeySequenceEdit" name="pinShortcutEdit"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="labelSettingsShortcut">
+        <property name="text">
+         <string>Open Settings</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QKeySequenceEdit" name="settingsShortcutEdit"/>
       </item>
      </layout>
     </widget>

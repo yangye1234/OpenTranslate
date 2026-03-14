@@ -30,6 +30,7 @@ private slots:
     void onLanguagePairEdited();
     void onSaveClicked();
     void onAppLanguageChanged(int index);
+    void onAnySettingChanged();
 
 private:
     static QString normalizePair(const QString &pair);
@@ -37,10 +38,16 @@ private:
     QStringList currentPairs() const;
     void applyLanguage(AppLanguage language);
     void setupLanguageOptions();
+    void setDirty(bool dirty);
+    void updateSaveButtonText();
+    void setupDirtyTracking();
+    static bool hasShortcutConflict(const ShortcutConfig &shortcuts);
 
 private:
     Ui::SettingsWidget *ui;
     AppLanguage m_uiLanguage;
+    bool m_isDirty;
+    bool m_isLoading;
 };
 
 #endif // SETTINGSWIDGET_H

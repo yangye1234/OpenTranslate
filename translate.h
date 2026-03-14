@@ -16,6 +16,7 @@ QT_END_NAMESPACE
 
 class SettingsWidget;
 class BaiduTranslatorService;
+class QHotkey;
 
 class Translate : public QDialog
 {
@@ -41,12 +42,18 @@ private:
     bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
     void applyLanguage(AppLanguage language);
     void applyDialogStyle();
+    void applyShortcuts(const ShortcutConfig &shortcuts);
+    void unregisterGlobalHotkeys();
+    void registerGlobalHotkeys(const ShortcutConfig &shortcuts);
 
     Ui::Translate *ui;
     QPoint m_dragPosition;
     AppConfig m_config;
     SettingsWidget *m_settingsWidget;
     BaiduTranslatorService *m_baiduService;
+    QHotkey *m_swapHotkey;
+    QHotkey *m_pinHotkey;
+    QHotkey *m_settingsHotkey;
     bool m_isTranslating;
 };
 #endif // TRANSLATE_H

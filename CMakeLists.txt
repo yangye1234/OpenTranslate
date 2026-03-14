@@ -14,6 +14,15 @@ list(APPEND CMAKE_PREFIX_PATH "/Users/yy/Applications/qt/6.10.1/macos")
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network LinguistTools)
 
+include(FetchContent)
+set(QT_DEFAULT_MAJOR_VERSION ${QT_VERSION_MAJOR} CACHE STRING "" FORCE)
+FetchContent_Declare(
+    qhotkey
+    GIT_REPOSITORY https://github.com/Skycoder42/QHotkey.git
+    GIT_TAG 1.5.0
+)
+FetchContent_MakeAvailable(qhotkey)
+
 set(TS_FILES OpenTranslate_zh_CN.ts)
 
 set(PROJECT_SOURCES
@@ -63,7 +72,7 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network QHotkey::QHotkey)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
