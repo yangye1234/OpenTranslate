@@ -6,7 +6,6 @@
 #include "settingswidget.h"
 
 #include <QLinearGradient>
-#include <QRadialGradient>
 #include <QPushButton>
 
 Translate::Translate(QWidget *parent)
@@ -58,32 +57,12 @@ void Translate::paintEvent(QPaintEvent *event)
     QRectF rect = this->rect().adjusted(1, 1, -1, -1);
     path.addRoundedRect(rect, 22, 22);
 
-    // Stronger frosted backdrop.
+    // Use the previous 3bdd0f7 backdrop style.
     QLinearGradient gradient(rect.topLeft(), rect.bottomRight());
-    gradient.setColorAt(0.0, QColor(70, 76, 85, 138));
-    gradient.setColorAt(1.0, QColor(93, 100, 112, 138));
+    gradient.setColorAt(0.0, QColor(17, 33, 56, 168));
+    gradient.setColorAt(1.0, QColor(35, 53, 83, 168));
     painter.fillPath(path, gradient);
-
-    QRadialGradient glow1(QPointF(rect.width() * 0.2, rect.height() * 0.1), rect.width() * 0.7);
-    glow1.setColorAt(0.0, QColor(255, 255, 255, 36));
-    glow1.setColorAt(1.0, QColor(255, 255, 255, 0));
-    painter.fillPath(path, glow1);
-
-    QRadialGradient glow2(QPointF(rect.width() * 0.85, rect.height() * 0.85), rect.width() * 0.5);
-    glow2.setColorAt(0.0, QColor(255, 255, 255, 30));
-    glow2.setColorAt(1.0, QColor(255, 255, 255, 0));
-    painter.fillPath(path, glow2);
-
-    painter.save();
-    painter.setClipPath(path);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(255, 255, 255, 16));
-    painter.drawRoundedRect(rect.adjusted(6, 6, -6, -6), 18, 18);
-    painter.setBrush(QColor(255, 255, 255, 10));
-    painter.drawRoundedRect(rect.adjusted(12, 10, -12, -10), 16, 16);
-    painter.restore();
-
-    painter.setPen(QPen(QColor(214, 220, 228, 150), 1));
+    painter.setPen(QPen(QColor(120, 150, 190, 120), 1));
     painter.drawPath(path);
 }
 
@@ -264,13 +243,22 @@ void Translate::applyDialogStyle()
         "  selection-color: #1F2329;"
         "}"
         "QComboBox {"
+        "  combobox-popup: 1;"
         "  padding-right: 26px;"
         "}"
         "QComboBox QAbstractItemView {"
+        "  background: rgba(40, 44, 50, 0.98);"
+        "  border: 1px solid rgba(120, 128, 141, 0.95);"
         "  color: #FFFFFF;"
         "  outline: 0px;"
-        "  selection-background-color: rgba(112, 120, 133, 0.95);"
+        "  selection-background-color: rgba(98, 107, 121, 0.95);"
         "  selection-color: #FFFFFF;"
+        "}"
+        "QComboBox QAbstractItemView::item {"
+        "  color: #FFFFFF;"
+        "}"
+        "QComboBox QAbstractItemView::item:selected {"
+        "  color: #FFFFFF;"
         "}"
         "QComboBox::drop-down {"
         "  subcontrol-origin: padding;"
