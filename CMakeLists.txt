@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
+# CMake 4 defaults can reject old dependency policy compatibility in subprojects
+# (e.g. fetched qhotkey). Keep compatibility floor explicitly for dependency configure.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
+    set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
+endif()
+
 project(OpenTranslate VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
