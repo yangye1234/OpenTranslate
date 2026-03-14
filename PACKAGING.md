@@ -1,19 +1,4 @@
 # OpenTranslate 打包说明（macOS + Windows）
-
-## 1. 准备应用图标
-
-1. 把你发的这张图保存为：
-   - `assets/app-icon-1024.png`
-2. 生成系统图标：
-
-```bash
-./scripts/generate_app_icons.sh
-```
-
-生成结果：
-- `assets/icons/app.icns`（macOS）
-- `assets/icons/app.ico`（Windows）
-
 ## 2. macOS 打包
 
 建议在 macOS 机器上执行。
