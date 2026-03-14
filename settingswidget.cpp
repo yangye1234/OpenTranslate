@@ -28,6 +28,11 @@ SettingsWidget::SettingsWidget(QWidget *parent)
             this,
             &SettingsWidget::onAppLanguageChanged);
 
+    ui->swapShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    ui->pinShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    ui->settingsShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    ui->hotkeyStatusLabel->setVisible(false);
+
     setupDirtyTracking();
     setDirty(false);
 }
@@ -79,6 +84,14 @@ void SettingsWidget::setConfig(const AppConfig &config)
 
     m_isLoading = false;
     setDirty(false);
+    ui->baiduAppId->setFocus(Qt::OtherFocusReason);
+}
+
+void SettingsWidget::setHotkeyStatusMessage(const QString &message)
+{
+    m_hotkeyStatusMessage = message.trimmed();
+    ui->hotkeyStatusLabel->setText(m_hotkeyStatusMessage);
+    ui->hotkeyStatusLabel->setVisible(!m_hotkeyStatusMessage.isEmpty());
 }
 
 void SettingsWidget::onAddPairClicked()
@@ -256,6 +269,8 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     ui->labelSwapShortcut->setText(L10n::text(language, "settings.shortcuts.swap"));
     ui->labelPinShortcut->setText(L10n::text(language, "settings.shortcuts.pin"));
     ui->labelSettingsShortcut->setText(L10n::text(language, "settings.shortcuts.settings"));
+    ui->hotkeyStatusLabel->setText(m_hotkeyStatusMessage);
+    ui->hotkeyStatusLabel->setVisible(!m_hotkeyStatusMessage.isEmpty());
 
     ui->baiduGroup->setTitle(L10n::text(language, "settings.group.baidu"));
     ui->baiduEnabled->setText(L10n::text(language, "settings.baidu.enabled"));

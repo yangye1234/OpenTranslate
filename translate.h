@@ -56,6 +56,7 @@ private:
     QHotkey *m_pinHotkey;
     QHotkey *m_settingsHotkey;
     bool m_isTranslating;
+    QString m_hotkeyStatusMessage;
     TranslationCacheStore m_translationCache;
     QString m_pendingSourceText;
     QString m_pendingFrom;

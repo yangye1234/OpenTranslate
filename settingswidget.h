@@ -20,6 +20,7 @@ public:
     ~SettingsWidget() override;
 
     void setConfig(const AppConfig &config);
+    void setHotkeyStatusMessage(const QString &message);
 
 signals:
     void configSaved(const AppConfig &config);
@@ -48,6 +49,7 @@ private:
     AppLanguage m_uiLanguage;
     bool m_isDirty;
     bool m_isLoading;
+    QString m_hotkeyStatusMessage;
 };
 
 #endif // SETTINGSWIDGET_H

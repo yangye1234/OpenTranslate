@@ -10,7 +10,6 @@
 #include <QLinearGradient>
 #include <QListView>
 #include <QPushButton>
-#include <QShortcut>
 
 #if defined(Q_OS_MACOS)
 #include <Carbon/Carbon.h>
@@ -170,6 +169,7 @@ void Translate::openSettings()
     }
 
     m_settingsWidget->setConfig(m_config);
+    m_settingsWidget->setHotkeyStatusMessage(m_hotkeyStatusMessage);
     m_settingsWidget->show();
     m_settingsWidget->raise();
     m_settingsWidget->activateWindow();
@@ -435,24 +435,95 @@ void Translate::unregisterGlobalHotkeys()
 
 void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
 {
+    const ShortcutConfig defaults = defaultShortcutsForCurrentPlatform();
+    ShortcutConfig finalShortcuts = shortcuts;
+    bool shouldSaveConfig = false;
+    QStringList warnings;
+
     auto buildSequence = [](const QString &shortcut) {
         return QKeySequence::fromString(shortcut, QKeySequence::PortableText);
     };
 
-    const QKeySequence swapSequence = buildSequence(shortcuts.swapLanguage);
-    const QKeySequence pinSequence = buildSequence(shortcuts.toggleOnTop);
-    const QKeySequence settingsSequence = buildSequence(shortcuts.openSettings);
+    auto registerAction = [this, &buildSequence, &warnings, &shouldSaveConfig](
+                              QHotkey *&target,
+                              QString &configuredShortcut,
+                              const QString &defaultShortcut,
+                              void (Translate::*slot)(),
+                              const QString &fallbackMessage,
+                              const QString &failedMessage) {
+        const QKeySequence configuredSeq = buildSequence(configuredShortcut);
+        const QKeySequence defaultSeq = buildSequence(defaultShortcut);
+        const QString configuredCanonical = configuredSeq.toString(QKeySequence::PortableText);
+        const QString defaultCanonical = defaultSeq.toString(QKeySequence::PortableText);
 
-    if (!swapSequence.isEmpty()) {
-        m_swapHotkey = new QHotkey(swapSequence, true, this);
-        connect(m_swapHotkey, &QHotkey::activated, this, &Translate::swapLanguagePair);
+        auto tryRegister = [this, slot](const QKeySequence &sequence) -> QHotkey * {
+            if (sequence.isEmpty()) {
+                return nullptr;
+            }
+            QHotkey *hotkey = new QHotkey(sequence, true, this);
+            if (!hotkey->isRegistered()) {
+                delete hotkey;
+                return nullptr;
+            }
+            connect(hotkey, &QHotkey::activated, this, slot);
+            return hotkey;
+        };
+
+        target = tryRegister(configuredSeq);
+        if (target) {
+            return;
+        }
+
+        const bool configuredWasEmpty = configuredCanonical.isEmpty();
+        const bool canTryDefault = !defaultCanonical.isEmpty() && configuredCanonical != defaultCanonical;
+
+        if (canTryDefault) {
+            target = tryRegister(defaultSeq);
+            if (target) {
+                if (configuredShortcut != defaultCanonical) {
+                    configuredShortcut = defaultCanonical;
+                    shouldSaveConfig = true;
+                }
+                if (!configuredWasEmpty) {
+                    warnings << fallbackMessage;
+                }
+                return;
+            }
+        }
+
+        warnings << failedMessage;
+    };
+
+    registerAction(m_swapHotkey,
+                   finalShortcuts.swapLanguage,
+                   defaults.swapLanguage,
+                   &Translate::swapLanguagePair,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.swap"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.swap"));
+    registerAction(m_pinHotkey,
+                   finalShortcuts.toggleOnTop,
+                   defaults.toggleOnTop,
+                   &Translate::toggleStayOnTop,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.pin"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.pin"));
+    registerAction(m_settingsHotkey,
+                   finalShortcuts.openSettings,
+                   defaults.openSettings,
+                   &Translate::openSettings,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.settings"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.settings"));
+
+    m_hotkeyStatusMessage = warnings.join("\n");
+
+    if (shouldSaveConfig) {
+        m_config.shortcuts = finalShortcuts;
+        ConfigStore::save(m_config);
     }
-    if (!pinSequence.isEmpty()) {
-        m_pinHotkey = new QHotkey(pinSequence, true, this);
-        connect(m_pinHotkey, &QHotkey::activated, this, &Translate::toggleStayOnTop);
-    }
-    if (!settingsSequence.isEmpty()) {
-        m_settingsHotkey = new QHotkey(settingsSequence, true, this);
-        connect(m_settingsHotkey, &QHotkey::activated, this, &Translate::openSettings);
+
+    if (m_settingsWidget) {
+        if (shouldSaveConfig) {
+            m_settingsWidget->setConfig(m_config);
+        }
+        m_settingsWidget->setHotkeyStatusMessage(m_hotkeyStatusMessage);
     }
 }

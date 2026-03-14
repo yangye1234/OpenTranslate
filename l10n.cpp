@@ -11,6 +11,12 @@ QString en(const QString &key)
     if (key == "dialog.tooltip.swap") return "Swap language direction";
     if (key == "dialog.tooltip.pin") return "Pin on top";
     if (key == "dialog.tooltip.settings") return "Open settings";
+    if (key == "dialog.hotkey.fallback.swap") return "Swap hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.fallback.pin") return "On-top hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.fallback.settings") return "Settings hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.failed.swap") return "Swap hotkey registration failed.";
+    if (key == "dialog.hotkey.failed.pin") return "On-top hotkey registration failed.";
+    if (key == "dialog.hotkey.failed.settings") return "Settings hotkey registration failed.";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.group.app") return "Application";
@@ -61,6 +67,12 @@ QString zhCN(const QString &key)
     if (key == "dialog.tooltip.swap") return "切换翻译方向";
     if (key == "dialog.tooltip.pin") return "窗口置顶";
     if (key == "dialog.tooltip.settings") return "打开设置";
+    if (key == "dialog.hotkey.fallback.swap") return "语言互转快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.fallback.pin") return "置顶快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.fallback.settings") return "设置快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.failed.swap") return "语言互转快捷键注册失败。";
+    if (key == "dialog.hotkey.failed.pin") return "置顶快捷键注册失败。";
+    if (key == "dialog.hotkey.failed.settings") return "设置快捷键注册失败。";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.group.app") return "应用";
@@ -111,6 +123,12 @@ QString zhTW(const QString &key)
     if (key == "dialog.tooltip.swap") return "切換翻譯方向";
     if (key == "dialog.tooltip.pin") return "視窗置頂";
     if (key == "dialog.tooltip.settings") return "開啟設定";
+    if (key == "dialog.hotkey.fallback.swap") return "語言互轉快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.fallback.pin") return "置頂快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.fallback.settings") return "設定快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.failed.swap") return "語言互轉快捷鍵註冊失敗。";
+    if (key == "dialog.hotkey.failed.pin") return "置頂快捷鍵註冊失敗。";
+    if (key == "dialog.hotkey.failed.settings") return "設定快捷鍵註冊失敗。";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.group.app") return "應用";

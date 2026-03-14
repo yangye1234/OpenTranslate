@@ -6,6 +6,7 @@
 #include <QString>
 
 class QJsonArray;
+class QJsonObject;
 
 class TranslationCacheStore
 {
@@ -29,11 +30,24 @@ private:
     QString normalizedSource(const QString &sourceText) const;
     QJsonArray loadEntries() const;
     void saveEntries(const QJsonArray &entries) const;
-    int findIndex(const QJsonArray &entries,
-                  const QString &provider,
-                  const QString &from,
-                  const QString &to,
-                  const QString &sourceNorm) const;
+    int findBidirectionalIndex(const QJsonArray &entries,
+                               const QString &provider,
+                               const QString &from,
+                               const QString &to,
+                               const QString &sourceNorm) const;
+    QJsonObject makeCanonicalEntry(const QString &provider,
+                                   const QString &langA,
+                                   const QString &textA,
+                                   const QString &langB,
+                                   const QString &textB,
+                                   const QString &updatedAt) const;
+    QJsonObject canonicalizeExistingEntry(const QJsonObject &obj) const;
+    QJsonArray migrateIfNeeded(const QJsonArray &entries, bool &changed) const;
+    QString entryIdentityKey(const QString &provider,
+                             const QString &langA,
+                             const QString &textANorm,
+                             const QString &langB,
+                             const QString &textBNorm) const;
 
 private:
     QString m_cacheFilePath;
