@@ -43,6 +43,12 @@ AppConfig ConfigStore::load()
     if (config.shortcuts.openSettings.trimmed().isEmpty()) {
         config.shortcuts.openSettings = defaultShortcutsForCurrentPlatform().openSettings;
     }
+#if defined(Q_OS_MACOS)
+    // Migration: previous versions accidentally used Meta+, which maps to Control key on macOS.
+    if (config.shortcuts.openSettings == "Meta+,") {
+        config.shortcuts.openSettings = "Ctrl+,";
+    }
+#endif
 
     QStringList pairs = settings.value("languages/pairs").toStringList();
     if (pairs.isEmpty()) {

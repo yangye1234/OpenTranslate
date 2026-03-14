@@ -10,6 +10,32 @@
 #include <QLinearGradient>
 #include <QListView>
 #include <QPushButton>
+#include <QShortcut>
+
+#if defined(Q_OS_MACOS)
+#include <Carbon/Carbon.h>
+#endif
+
+namespace {
+#if defined(Q_OS_MACOS)
+void setupMacNativeHotkeyMappings()
+{
+    static bool initialized = false;
+    if (initialized) {
+        return;
+    }
+    initialized = true;
+
+    // QHotkey may fail mapping these on some macOS input sources, so provide native mapping explicitly.
+    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+T", QKeySequence::PortableText),
+                              QHotkey::NativeShortcut(kVK_ANSI_T, cmdKey | controlKey));
+    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+F", QKeySequence::PortableText),
+                              QHotkey::NativeShortcut(kVK_ANSI_F, cmdKey | controlKey));
+    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+,", QKeySequence::PortableText),
+                              QHotkey::NativeShortcut(kVK_ANSI_Comma, cmdKey));
+}
+#endif
+}
 
 Translate::Translate(QWidget *parent)
     : QDialog(parent)
@@ -33,6 +59,13 @@ Translate::Translate(QWidget *parent)
     resize(460, 138);
     applyDialogStyle();
     ui->Translation->setReadOnly(true);
+    ui->Convert->setAutoDefault(false);
+    ui->Convert->setDefault(false);
+    ui->Fixed->setAutoDefault(false);
+    ui->Fixed->setDefault(false);
+    ui->Settings->setAutoDefault(false);
+    ui->Settings->setDefault(false);
+
     auto *languageView = new QListView(ui->SelectLanguage);
     languageView->setFrameShape(QFrame::NoFrame);
     languageView->setStyleSheet(
@@ -64,6 +97,9 @@ Translate::Translate(QWidget *parent)
     applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
+#if defined(Q_OS_MACOS)
+    setupMacNativeHotkeyMappings();
+#endif
     applyShortcuts(m_config.shortcuts);
 }
 
