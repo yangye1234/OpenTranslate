@@ -11,19 +11,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_PREFIX_PATH "/Users/yy/Applications/qt/6.10.1/macos")
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network LinguistTools)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network LinguistTools)
 
 set(TS_FILES OpenTranslate_zh_CN.ts)
 
 set(PROJECT_SOURCES
         appconfig.h
+        baidutranslatorservice.h
+        baidutranslatorservice.cpp
         configstore.h
         configstore.cpp
         main.cpp
         settingswidget.cpp
         settingswidget.h
         settingswidget.ui
+        translatorservice.h
         translate.cpp
         translate.h
         translate.ui
@@ -58,7 +61,7 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

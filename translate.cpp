@@ -1,5 +1,6 @@
 #include "translate.h"
 #include "./ui_translate.h"
+#include "baidutranslatorservice.h"
 #include "configstore.h"
 #include "settingswidget.h"
 
@@ -10,6 +11,8 @@ Translate::Translate(QWidget *parent)
     , ui(new Ui::Translate)
     , m_dragPosition(0, 0)
     , m_settingsWidget(nullptr)
+    , m_baiduService(new BaiduTranslatorService(this))
+    , m_isTranslating(false)
 {
     ui->setupUi(this);
     
@@ -23,9 +26,13 @@ Translate::Translate(QWidget *parent)
     resize(400, 120);
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
+    connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
+    connect(m_baiduService, &BaiduTranslatorService::translationFinished,
+            this, &Translate::onTranslationFinished);
 
     m_config = ConfigStore::load();
     reloadLanguagePairs();
+    m_baiduService->setConfig(m_config);
 }
 
 Translate::~Translate()
@@ -104,6 +111,7 @@ void Translate::onConfigSaved(const AppConfig &config)
     m_config = config;
     ConfigStore::save(m_config);
     reloadLanguagePairs();
+    m_baiduService->setConfig(m_config);
 }
 
 void Translate::reloadLanguagePairs()
@@ -122,4 +130,59 @@ void Translate::reloadLanguagePairs()
         index = 0;
     }
     ui->SelectLanguage->setCurrentIndex(index);
+}
+
+void Translate::triggerTranslate()
+{
+    if (m_isTranslating) {
+        return;
+    }
+
+    const QString sourceText = ui->OriginalText->text().trimmed();
+    if (sourceText.isEmpty()) {
+        return;
+    }
+
+    QString from;
+    QString to;
+    if (!parseLanguagePair(ui->SelectLanguage->currentText(), from, to)) {
+        ui->Translation->setText("Invalid language pair.");
+        return;
+    }
+
+    m_isTranslating = true;
+    ui->OriginalText->setEnabled(false);
+    ui->Translation->setText("Translating...");
+    m_baiduService->translate(sourceText, from, to);
+}
+
+void Translate::onTranslationFinished(bool success, const QString &translatedText, const QString &errorMessage)
+{
+    m_isTranslating = false;
+    ui->OriginalText->setEnabled(true);
+
+    if (success) {
+        ui->Translation->setText(translatedText);
+        ui->Translation->setFocus();
+        ui->Translation->selectAll();
+        return;
+    }
+
+    ui->Translation->setText(errorMessage);
+}
+
+bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &to) const
+{
+    QString normalized = pair.trimmed();
+    normalized.replace("-->", "->");
+    normalized.remove(' ');
+
+    const QStringList parts = normalized.split("->", Qt::SkipEmptyParts);
+    if (parts.size() != 2) {
+        return false;
+    }
+
+    from = parts.at(0);
+    to = parts.at(1);
+    return !from.isEmpty() && !to.isEmpty();
 }

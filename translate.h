@@ -15,6 +15,7 @@ class Translate;
 QT_END_NAMESPACE
 
 class SettingsWidget;
+class BaiduTranslatorService;
 
 class Translate : public QDialog
 {
@@ -32,12 +33,17 @@ private slots:
     void toggleStayOnTop();
     void openSettings();
     void onConfigSaved(const AppConfig &config);
+    void triggerTranslate();
+    void onTranslationFinished(bool success, const QString &translatedText, const QString &errorMessage);
 private:
     void reloadLanguagePairs();
+    bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
 
     Ui::Translate *ui;
     QPoint m_dragPosition;
     AppConfig m_config;
     SettingsWidget *m_settingsWidget;
+    BaiduTranslatorService *m_baiduService;
+    bool m_isTranslating;
 };
 #endif // TRANSLATE_H
