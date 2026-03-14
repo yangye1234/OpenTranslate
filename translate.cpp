@@ -10,6 +10,7 @@
 #include <QLinearGradient>
 #include <QListView>
 #include <QPushButton>
+#include <QTimer>
 
 #if defined(Q_OS_MACOS)
 #include <Carbon/Carbon.h>
@@ -99,7 +100,11 @@ Translate::Translate(QWidget *parent)
 #if defined(Q_OS_MACOS)
     setupMacNativeHotkeyMappings();
 #endif
-    applyShortcuts(m_config.shortcuts);
+    // Register global hotkeys after the event loop starts.
+    // Some platforms (notably macOS) may fail registrations before app.exec().
+    QTimer::singleShot(0, this, [this]() {
+        applyShortcuts(m_config.shortcuts);
+    });
 }
 
 Translate::~Translate()
