@@ -5,7 +5,9 @@
 #include "l10n.h"
 #include "settingswidget.h"
 
+#include <QFrame>
 #include <QLinearGradient>
+#include <QListView>
 #include <QPushButton>
 
 Translate::Translate(QWidget *parent)
@@ -27,6 +29,25 @@ Translate::Translate(QWidget *parent)
     resize(460, 138);
     applyDialogStyle();
     ui->Translation->setReadOnly(true);
+    auto *languageView = new QListView(ui->SelectLanguage);
+    languageView->setFrameShape(QFrame::NoFrame);
+    languageView->setStyleSheet(
+        "QListView {"
+        "  background: rgba(40, 44, 50, 0.98);"
+        "  color: #FFFFFF;"
+        "  border: none;"
+        "  outline: 0;"
+        "}"
+        "QListView::item {"
+        "  color: #FFFFFF;"
+        "  padding: 4px 8px;"
+        "}"
+        "QListView::item:selected {"
+        "  color: #FFFFFF;"
+        "  background: rgba(98, 107, 121, 0.95);"
+        "}"
+    );
+    ui->SelectLanguage->setView(languageView);
 
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
@@ -131,6 +152,9 @@ void Translate::reloadLanguagePairs()
         pairs << "en->zh" << "zh->en";
     }
     ui->SelectLanguage->addItems(pairs);
+    for (int i = 0; i < ui->SelectLanguage->count(); ++i) {
+        ui->SelectLanguage->setItemData(i, QColor("#FFFFFF"), Qt::ForegroundRole);
+    }
 
     int index = ui->SelectLanguage->findText(current);
     if (index < 0) {
@@ -248,7 +272,7 @@ void Translate::applyDialogStyle()
         "}"
         "QComboBox QAbstractItemView {"
         "  background: rgba(40, 44, 50, 0.98);"
-        "  border: 1px solid rgba(120, 128, 141, 0.95);"
+        "  border: none;"
         "  color: #FFFFFF;"
         "  outline: 0px;"
         "  selection-background-color: rgba(98, 107, 121, 0.95);"
