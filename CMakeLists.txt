@@ -24,6 +24,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(qhotkey)
 
 set(TS_FILES OpenTranslate_zh_CN.ts)
+set(APP_ICON_ICO "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/app.ico")
+set(APP_ICON_ICNS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/app.icns")
 
 set(PROJECT_SOURCES
         appconfig.h
@@ -76,6 +78,30 @@ endif()
 
 target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network QHotkey::QHotkey)
 
+if(WIN32)
+    if(EXISTS "${APP_ICON_ICO}")
+        set(APP_ICON_ICO_RC "${APP_ICON_ICO}")
+        configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/OpenTranslate.rc.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/OpenTranslate.rc"
+            @ONLY
+        )
+        target_sources(OpenTranslate PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/OpenTranslate.rc")
+    else()
+        message(WARNING "Windows icon not found: ${APP_ICON_ICO}. Run scripts/generate_app_icons.sh first.")
+    endif()
+endif()
+
+if(APPLE)
+    if(EXISTS "${APP_ICON_ICNS}")
+        set_source_files_properties("${APP_ICON_ICNS}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+        target_sources(OpenTranslate PRIVATE "${APP_ICON_ICNS}")
+        set_target_properties(OpenTranslate PROPERTIES MACOSX_BUNDLE_ICON_FILE "app.icns")
+    else()
+        message(WARNING "macOS icon not found: ${APP_ICON_ICNS}. Run scripts/generate_app_icons.sh first.")
+    endif()
+endif()
+
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
@@ -96,6 +122,37 @@ install(TARGETS OpenTranslate
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(QT_VERSION_MAJOR EQUAL 6)
+    if(COMMAND qt_generate_deploy_app_script)
+        qt_generate_deploy_app_script(
+            TARGET OpenTranslate
+            OUTPUT_SCRIPT deploy_script
+            NO_UNSUPPORTED_PLATFORM_ERROR
+        )
+        install(SCRIPT ${deploy_script})
+    endif()
+endif()
+
+set(CPACK_PACKAGE_NAME "OpenTranslate")
+set(CPACK_PACKAGE_VENDOR "OpenTranslate")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}")
+
+if(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+    set(CPACK_DMG_VOLUME_NAME "OpenTranslate")
+elseif(WIN32)
+    set(CPACK_GENERATOR "NSIS;ZIP")
+    set(CPACK_NSIS_DISPLAY_NAME "OpenTranslate")
+    set(CPACK_NSIS_PACKAGE_NAME "OpenTranslate")
+    if(EXISTS "${APP_ICON_ICO}")
+        set(CPACK_NSIS_MUI_ICON "${APP_ICON_ICO}")
+        set(CPACK_NSIS_MUI_UNIICON "${APP_ICON_ICO}")
+    endif()
+endif()
+
+include(CPack)
 
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(OpenTranslate)
