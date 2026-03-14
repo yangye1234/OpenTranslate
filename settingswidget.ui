@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsWidget</class>
+ <widget class="QWidget" name="SettingsWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>560</width>
+    <height>520</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Settings</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="baiduGroup">
+     <property name="title">
+      <string>Baidu API</string>
+     </property>
+     <layout class="QFormLayout" name="formLayoutBaidu">
+      <item row="0" column="0" colspan="2">
+       <widget class="QCheckBox" name="baiduEnabled">
+        <property name="text">
+         <string>Enable Baidu translator</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelBaiduAppId">
+        <property name="text">
+         <string>App ID</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="baiduAppId"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="labelBaiduAppKey">
+        <property name="text">
+         <string>App Key</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="baiduAppKey">
+        <property name="echoMode">
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="genericGroup">
+     <property name="title">
+      <string>Generic LLM API (V1 stores only)</string>
+     </property>
+     <layout class="QFormLayout" name="formLayoutGeneric">
+      <item row="0" column="0" colspan="2">
+       <widget class="QCheckBox" name="genericEnabled">
+        <property name="text">
+         <string>Enable Generic API (not called in V1)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelGenericBaseUrl">
+        <property name="text">
+         <string>Base URL</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="genericBaseUrl"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="labelGenericModel">
+        <property name="text">
+         <string>Model</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="genericModel"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="labelGenericApiKey">
+        <property name="text">
+         <string>API Key</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="genericApiKey">
+        <property name="echoMode">
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="labelGenericPrompt">
+        <property name="text">
+         <string>Prompt Template</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QPlainTextEdit" name="genericPrompt">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>80</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="pairGroup">
+     <property name="title">
+      <string>Language Pairs</string>
+     </property>
+     <layout class="QVBoxLayout" name="pairLayout">
+      <item>
+       <widget class="QListWidget" name="pairList"/>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="pairEditorLayout">
+        <item>
+         <widget class="QLineEdit" name="pairEdit">
+          <property name="placeholderText">
+           <string>en->zh</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="addPairButton">
+          <property name="text">
+           <string>Add</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="editPairButton">
+          <property name="text">
+           <string>Edit Selected</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="removePairButton">
+          <property name="text">
+           <string>Remove</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="bottomLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="saveButton">
+       <property name="text">
+        <string>Save</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
