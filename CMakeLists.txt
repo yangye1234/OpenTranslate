@@ -37,6 +37,8 @@ set(PROJECT_SOURCES
         settingswidget.cpp
         settingswidget.h
         settingswidget.ui
+        translationcachestore.cpp
+        translationcachestore.h
         translatorservice.h
         translate.cpp
         translate.h

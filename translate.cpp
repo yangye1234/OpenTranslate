@@ -224,6 +224,24 @@ void Translate::triggerTranslate()
         return;
     }
 
+    const QString provider = "baidu";
+    const auto cached = m_translationCache.find(provider, from, to, sourceText);
+    if (cached.has_value()) {
+        m_pendingSourceText.clear();
+        m_pendingFrom.clear();
+        m_pendingTo.clear();
+        m_pendingProvider.clear();
+        ui->Translation->setText(cached.value());
+        ui->Translation->setFocus();
+        ui->Translation->selectAll();
+        return;
+    }
+
+    m_pendingSourceText = sourceText;
+    m_pendingFrom = from;
+    m_pendingTo = to;
+    m_pendingProvider = provider;
+
     m_isTranslating = true;
     ui->OriginalText->setEnabled(false);
     ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.translating"));
@@ -236,13 +254,45 @@ void Translate::onTranslationFinished(bool success, const QString &translatedTex
     ui->OriginalText->setEnabled(true);
 
     if (success) {
+        if (!m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
+            m_translationCache.upsert(m_pendingProvider,
+                                      m_pendingFrom,
+                                      m_pendingTo,
+                                      m_pendingSourceText,
+                                      translatedText);
+        }
         ui->Translation->setText(translatedText);
         ui->Translation->setFocus();
         ui->Translation->selectAll();
+        m_pendingSourceText.clear();
+        m_pendingFrom.clear();
+        m_pendingTo.clear();
+        m_pendingProvider.clear();
         return;
     }
 
+    if (!m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
+        const auto fallback = m_translationCache.find(m_pendingProvider,
+                                                      m_pendingFrom,
+                                                      m_pendingTo,
+                                                      m_pendingSourceText);
+        if (fallback.has_value()) {
+            ui->Translation->setText(fallback.value());
+            ui->Translation->setFocus();
+            ui->Translation->selectAll();
+            m_pendingSourceText.clear();
+            m_pendingFrom.clear();
+            m_pendingTo.clear();
+            m_pendingProvider.clear();
+            return;
+        }
+    }
+
     ui->Translation->setText(errorMessage);
+    m_pendingSourceText.clear();
+    m_pendingFrom.clear();
+    m_pendingTo.clear();
+    m_pendingProvider.clear();
 }
 
 bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &to) const

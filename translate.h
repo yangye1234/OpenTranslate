@@ -7,6 +7,7 @@
 #include <QMouseEvent>
 
 #include "appconfig.h"
+#include "translationcachestore.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -55,5 +56,10 @@ private:
     QHotkey *m_pinHotkey;
     QHotkey *m_settingsHotkey;
     bool m_isTranslating;
+    TranslationCacheStore m_translationCache;
+    QString m_pendingSourceText;
+    QString m_pendingFrom;
+    QString m_pendingTo;
+    QString m_pendingProvider;
 };
 #endif // TRANSLATE_H
