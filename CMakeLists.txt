@@ -22,6 +22,8 @@ set(PROJECT_SOURCES
         baidutranslatorservice.cpp
         configstore.h
         configstore.cpp
+        l10n.h
+        l10n.cpp
         main.cpp
         settingswidget.cpp
         settingswidget.h

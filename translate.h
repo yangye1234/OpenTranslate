@@ -39,6 +39,8 @@ private slots:
 private:
     void reloadLanguagePairs();
     bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
+    void applyLanguage(AppLanguage language);
+    void applyDialogStyle();
 
     Ui::Translate *ui;
     QPoint m_dragPosition;

@@ -1,20 +1,28 @@
 #include "settingswidget.h"
 #include "ui_settingswidget.h"
+#include "l10n.h"
 
+#include <QComboBox>
 #include <QMessageBox>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::SettingsWidget)
+    , m_uiLanguage(AppLanguage::SimplifiedChinese)
 {
     ui->setupUi(this);
-    setWindowTitle("Settings");
+    setupLanguageOptions();
+    applyLanguage(m_uiLanguage);
 
     connect(ui->addPairButton, &QPushButton::clicked, this, &SettingsWidget::onAddPairClicked);
     connect(ui->removePairButton, &QPushButton::clicked, this, &SettingsWidget::onRemovePairClicked);
     connect(ui->pairEdit, &QLineEdit::returnPressed, this, &SettingsWidget::onLanguagePairEdited);
     connect(ui->editPairButton, &QPushButton::clicked, this, &SettingsWidget::onLanguagePairEdited);
     connect(ui->saveButton, &QPushButton::clicked, this, &SettingsWidget::onSaveClicked);
+    connect(ui->appLanguageCombo,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            this,
+            &SettingsWidget::onAppLanguageChanged);
 }
 
 SettingsWidget::~SettingsWidget()
@@ -33,6 +41,9 @@ void SettingsWidget::setConfig(const AppConfig &config)
     ui->genericModel->setText(config.generic.model);
     ui->genericApiKey->setText(config.generic.apiKey);
     ui->genericPrompt->setPlainText(config.generic.promptTemplate);
+    ui->appLanguageCombo->setCurrentIndex(static_cast<int>(config.appLanguage));
+    m_uiLanguage = config.appLanguage;
+    applyLanguage(m_uiLanguage);
 
     refreshPairList(config.languagePairs);
     ui->pairEdit->clear();
@@ -42,13 +53,17 @@ void SettingsWidget::onAddPairClicked()
 {
     const QString pair = normalizePair(ui->pairEdit->text());
     if (pair.isEmpty() || !pair.contains("->")) {
-        QMessageBox::warning(this, "Invalid language pair", "Use format like en->zh.");
+        QMessageBox::warning(this,
+                             L10n::text(m_uiLanguage, "settings.error.invalid_pair.title"),
+                             L10n::text(m_uiLanguage, "settings.error.invalid_pair.body"));
         return;
     }
 
     for (int i = 0; i < ui->pairList->count(); ++i) {
         if (ui->pairList->item(i)->text() == pair) {
-            QMessageBox::information(this, "Duplicate", "This language pair already exists.");
+            QMessageBox::information(this,
+                                     L10n::text(m_uiLanguage, "settings.error.duplicate.title"),
+                                     L10n::text(m_uiLanguage, "settings.error.duplicate.body"));
             return;
         }
     }
@@ -76,13 +91,17 @@ void SettingsWidget::onLanguagePairEdited()
 
     const QString pair = normalizePair(ui->pairEdit->text());
     if (pair.isEmpty() || !pair.contains("->")) {
-        QMessageBox::warning(this, "Invalid language pair", "Use format like en->zh.");
+        QMessageBox::warning(this,
+                             L10n::text(m_uiLanguage, "settings.error.invalid_pair.title"),
+                             L10n::text(m_uiLanguage, "settings.error.invalid_pair.body"));
         return;
     }
 
     for (int i = 0; i < ui->pairList->count(); ++i) {
         if (ui->pairList->item(i) != item && ui->pairList->item(i)->text() == pair) {
-            QMessageBox::information(this, "Duplicate", "This language pair already exists.");
+            QMessageBox::information(this,
+                                     L10n::text(m_uiLanguage, "settings.error.duplicate.title"),
+                                     L10n::text(m_uiLanguage, "settings.error.duplicate.body"));
             return;
         }
     }
@@ -106,8 +125,15 @@ void SettingsWidget::onSaveClicked()
 
     config.activeProvider = ProviderType::Baidu;
     config.languagePairs = currentPairs();
+    config.appLanguage = static_cast<AppLanguage>(ui->appLanguageCombo->currentIndex());
 
     emit configSaved(config);
+}
+
+void SettingsWidget::onAppLanguageChanged(int index)
+{
+    m_uiLanguage = static_cast<AppLanguage>(index);
+    applyLanguage(m_uiLanguage);
 }
 
 QString SettingsWidget::normalizePair(const QString &pair)
@@ -147,4 +173,37 @@ QStringList SettingsWidget::currentPairs() const
         pairs << "en->zh" << "zh->en";
     }
     return pairs;
+}
+
+void SettingsWidget::applyLanguage(AppLanguage language)
+{
+    setWindowTitle(L10n::text(language, "settings.title"));
+    ui->appGroup->setTitle(L10n::text(language, "settings.group.app"));
+    ui->labelAppLanguage->setText(L10n::text(language, "settings.label.app_language"));
+    ui->baiduGroup->setTitle(L10n::text(language, "settings.group.baidu"));
+    ui->baiduEnabled->setText(L10n::text(language, "settings.baidu.enabled"));
+    ui->labelBaiduAppId->setText(L10n::text(language, "settings.baidu.app_id"));
+    ui->labelBaiduAppKey->setText(L10n::text(language, "settings.baidu.app_key"));
+
+    ui->genericGroup->setTitle(L10n::text(language, "settings.group.generic"));
+    ui->genericEnabled->setText(L10n::text(language, "settings.generic.enabled"));
+    ui->labelGenericBaseUrl->setText(L10n::text(language, "settings.generic.base_url"));
+    ui->labelGenericModel->setText(L10n::text(language, "settings.generic.model"));
+    ui->labelGenericApiKey->setText(L10n::text(language, "settings.generic.api_key"));
+    ui->labelGenericPrompt->setText(L10n::text(language, "settings.generic.prompt"));
+
+    ui->pairGroup->setTitle(L10n::text(language, "settings.group.pairs"));
+    ui->pairEdit->setPlaceholderText(L10n::text(language, "settings.pairs.placeholder"));
+    ui->addPairButton->setText(L10n::text(language, "settings.pairs.add"));
+    ui->editPairButton->setText(L10n::text(language, "settings.pairs.edit"));
+    ui->removePairButton->setText(L10n::text(language, "settings.pairs.remove"));
+    ui->saveButton->setText(L10n::text(language, "settings.save"));
+}
+
+void SettingsWidget::setupLanguageOptions()
+{
+    ui->appLanguageCombo->clear();
+    ui->appLanguageCombo->addItem(L10n::text(AppLanguage::English, "language.english"));
+    ui->appLanguageCombo->addItem(L10n::text(AppLanguage::SimplifiedChinese, "language.zh_cn"));
+    ui->appLanguageCombo->addItem(L10n::text(AppLanguage::TraditionalChinese, "language.zh_tw"));
 }

@@ -2,8 +2,10 @@
 #include "./ui_translate.h"
 #include "baidutranslatorservice.h"
 #include "configstore.h"
+#include "l10n.h"
 #include "settingswidget.h"
 
+#include <QLinearGradient>
 #include <QPushButton>
 
 Translate::Translate(QWidget *parent)
@@ -22,8 +24,10 @@ Translate::Translate(QWidget *parent)
     // 设置窗口背景透明
     setAttribute(Qt::WA_TranslucentBackground);
     
-    // 设置窗口大小和位置
-    resize(400, 120);
+    resize(460, 170);
+    applyDialogStyle();
+    ui->Translation->setReadOnly(true);
+
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
     connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
@@ -32,6 +36,7 @@ Translate::Translate(QWidget *parent)
             this, &Translate::onTranslationFinished);
 
     m_config = ConfigStore::load();
+    applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
 }
@@ -48,16 +53,16 @@ void Translate::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
     
-    // 创建椭圆形路径
     QPainterPath path;
     QRectF rect = this->rect().adjusted(1, 1, -1, -1);
-    path.addRoundedRect(rect, rect.height() / 3.0, rect.height() / 3.0);
-    
-    // 设置背景颜色（深色主题）
-    painter.fillPath(path, QColor(30, 30, 30, 200));
-    
-    // 可选：添加边框
-    painter.setPen(QPen(QColor(60, 60, 60), 1));
+    path.addRoundedRect(rect, 22, 22);
+
+    QLinearGradient gradient(rect.topLeft(), rect.bottomRight());
+    gradient.setColorAt(0.0, QColor(17, 33, 56, 245));
+    gradient.setColorAt(1.0, QColor(35, 53, 83, 245));
+    painter.fillPath(path, gradient);
+
+    painter.setPen(QPen(QColor(120, 150, 190, 120), 1));
     painter.drawPath(path);
 }
 
@@ -111,6 +116,7 @@ void Translate::onConfigSaved(const AppConfig &config)
 {
     m_config = config;
     ConfigStore::save(m_config);
+    applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
 }
@@ -147,13 +153,13 @@ void Translate::triggerTranslate()
     QString from;
     QString to;
     if (!parseLanguagePair(ui->SelectLanguage->currentText(), from, to)) {
-        ui->Translation->setText("Invalid language pair.");
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.invalid_pair"));
         return;
     }
 
     m_isTranslating = true;
     ui->OriginalText->setEnabled(false);
-    ui->Translation->setText("Translating...");
+    ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.translating"));
     m_baiduService->translate(sourceText, from, to);
 }
 
@@ -209,4 +215,47 @@ void Translate::swapLanguagePair()
     if (index >= 0) {
         ui->SelectLanguage->setCurrentIndex(index);
     }
+}
+
+void Translate::applyLanguage(AppLanguage language)
+{
+    setWindowTitle(L10n::text(language, "dialog.title"));
+    ui->OriginalText->setPlaceholderText(L10n::text(language, "dialog.original.placeholder"));
+    ui->Translation->setPlaceholderText(L10n::text(language, "dialog.result.placeholder"));
+    ui->Convert->setToolTip(L10n::text(language, "dialog.tooltip.swap"));
+    ui->Fixed->setToolTip(L10n::text(language, "dialog.tooltip.pin"));
+    ui->Settings->setToolTip(L10n::text(language, "dialog.tooltip.settings"));
+}
+
+void Translate::applyDialogStyle()
+{
+    setStyleSheet(
+        "QDialog {"
+        "  background: transparent;"
+        "}"
+        "QComboBox, QLineEdit {"
+        "  background: rgba(245, 248, 255, 0.96);"
+        "  color: #1E293B;"
+        "  border: 1px solid rgba(155, 177, 210, 0.7);"
+        "  border-radius: 10px;"
+        "  padding: 6px 10px;"
+        "  selection-background-color: #4D7CCC;"
+        "}"
+        "QLineEdit:read-only {"
+        "  background: rgba(230, 240, 255, 0.95);"
+        "}"
+        "QPushButton {"
+        "  background: rgba(235, 243, 255, 0.95);"
+        "  color: #11345A;"
+        "  border: 1px solid rgba(110, 145, 190, 0.7);"
+        "  border-radius: 10px;"
+        "  padding: 5px 8px;"
+        "}"
+        "QPushButton:hover {"
+        "  background: rgba(255, 255, 255, 0.98);"
+        "}"
+        "QPushButton:pressed {"
+        "  background: rgba(210, 226, 250, 0.95);"
+        "}"
+    );
 }

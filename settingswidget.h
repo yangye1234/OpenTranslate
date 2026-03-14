@@ -29,14 +29,18 @@ private slots:
     void onRemovePairClicked();
     void onLanguagePairEdited();
     void onSaveClicked();
+    void onAppLanguageChanged(int index);
 
 private:
     static QString normalizePair(const QString &pair);
     void refreshPairList(const QStringList &pairs);
     QStringList currentPairs() const;
+    void applyLanguage(AppLanguage language);
+    void setupLanguageOptions();
 
 private:
     Ui::SettingsWidget *ui;
+    AppLanguage m_uiLanguage;
 };
 
 #endif // SETTINGSWIDGET_H

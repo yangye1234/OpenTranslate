@@ -28,6 +28,7 @@ AppConfig ConfigStore::load()
     config.generic.enabled = settings.value("generic/enabled", false).toBool();
 
     config.activeProvider = static_cast<ProviderType>(settings.value("provider/active", 0).toInt());
+    config.appLanguage = static_cast<AppLanguage>(settings.value("app/language", 1).toInt());
 
     QStringList pairs = settings.value("languages/pairs").toStringList();
     if (pairs.isEmpty()) {
@@ -55,6 +56,7 @@ void ConfigStore::save(const AppConfig &config)
     settings.setValue("generic/enabled", config.generic.enabled);
 
     settings.setValue("provider/active", static_cast<int>(config.activeProvider));
+    settings.setValue("app/language", static_cast<int>(config.appLanguage));
     settings.setValue("languages/pairs", normalizedPairs(config.languagePairs));
 }
 

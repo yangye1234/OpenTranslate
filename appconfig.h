@@ -9,6 +9,12 @@ enum class ProviderType {
     Generic = 1
 };
 
+enum class AppLanguage {
+    English = 0,
+    SimplifiedChinese = 1,
+    TraditionalChinese = 2
+};
+
 struct BaiduConfig {
     QString appId;
     QString appKey;
@@ -28,6 +34,7 @@ struct AppConfig {
     GenericApiConfig generic;
     QStringList languagePairs;
     ProviderType activeProvider = ProviderType::Baidu;
+    AppLanguage appLanguage = AppLanguage::SimplifiedChinese;
 };
 
 #endif // APPCONFIG_H
