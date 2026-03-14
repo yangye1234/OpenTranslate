@@ -6,20 +6,20 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>170</height>
+    <width>460</width>
+    <height>138</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>460</width>
-    <height>170</height>
+    <height>138</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>460</width>
-    <height>170</height>
+    <height>138</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -33,15 +33,15 @@
        <item>
         <widget class="QComboBox" name="SelectLanguage">
          <property name="minimumSize">
-          <size>
+         <size>
            <width>0</width>
-         <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-         <height>30</height>
+           <height>28</height>
           </size>
          </property>
         </widget>
@@ -51,13 +51,13 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
            <width>42</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="text">
@@ -70,13 +70,13 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
            <width>42</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="text">
@@ -89,13 +89,13 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
            <width>40</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="text">
@@ -110,7 +110,7 @@
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>38</height>
+         <height>32</height>
         </size>
        </property>
       </widget>
@@ -120,7 +120,7 @@
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>38</height>
+         <height>32</height>
         </size>
        </property>
       </widget>

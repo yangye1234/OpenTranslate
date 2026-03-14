@@ -24,7 +24,7 @@ Translate::Translate(QWidget *parent)
     // 设置窗口背景透明
     setAttribute(Qt::WA_TranslucentBackground);
     
-    resize(460, 170);
+    resize(460, 138);
     applyDialogStyle();
     ui->Translation->setReadOnly(true);
 
@@ -58,8 +58,8 @@ void Translate::paintEvent(QPaintEvent *event)
     path.addRoundedRect(rect, 22, 22);
 
     QLinearGradient gradient(rect.topLeft(), rect.bottomRight());
-    gradient.setColorAt(0.0, QColor(17, 33, 56, 245));
-    gradient.setColorAt(1.0, QColor(35, 53, 83, 245));
+    gradient.setColorAt(0.0, QColor(17, 33, 56, 168));
+    gradient.setColorAt(1.0, QColor(35, 53, 83, 168));
     painter.fillPath(path, gradient);
 
     painter.setPen(QPen(QColor(120, 150, 190, 120), 1));
@@ -234,22 +234,41 @@ void Translate::applyDialogStyle()
         "  background: transparent;"
         "}"
         "QComboBox, QLineEdit {"
-        "  background: rgba(245, 248, 255, 0.96);"
+        "  background: rgba(245, 248, 255, 0.92);"
         "  color: #1E293B;"
         "  border: 1px solid rgba(155, 177, 210, 0.7);"
         "  border-radius: 10px;"
-        "  padding: 6px 10px;"
+        "  padding: 5px 10px;"
         "  selection-background-color: #4D7CCC;"
         "}"
+        "QComboBox {"
+        "  padding-right: 26px;"
+        "}"
+        "QComboBox::drop-down {"
+        "  subcontrol-origin: padding;"
+        "  subcontrol-position: top right;"
+        "  width: 22px;"
+        "  border: none;"
+        "  background: transparent;"
+        "}"
+        "QComboBox::down-arrow {"
+        "  image: none;"
+        "  width: 0px;"
+        "  height: 0px;"
+        "  border-left: 5px solid transparent;"
+        "  border-right: 5px solid transparent;"
+        "  border-top: 7px solid #33425B;"
+        "  margin-right: 6px;"
+        "}"
         "QLineEdit:read-only {"
-        "  background: rgba(230, 240, 255, 0.95);"
+        "  background: rgba(230, 240, 255, 0.88);"
         "}"
         "QPushButton {"
-        "  background: rgba(235, 243, 255, 0.95);"
+        "  background: rgba(235, 243, 255, 0.9);"
         "  color: #11345A;"
         "  border: 1px solid rgba(110, 145, 190, 0.7);"
         "  border-radius: 10px;"
-        "  padding: 5px 8px;"
+        "  padding: 4px 8px;"
         "}"
         "QPushButton:hover {"
         "  background: rgba(255, 255, 255, 0.98);"
