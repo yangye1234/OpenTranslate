@@ -26,6 +26,7 @@ Translate::Translate(QWidget *parent)
     resize(400, 120);
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
+    connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
     connect(m_baiduService, &BaiduTranslatorService::translationFinished,
             this, &Translate::onTranslationFinished);
@@ -185,4 +186,27 @@ bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &t
     from = parts.at(0);
     to = parts.at(1);
     return !from.isEmpty() && !to.isEmpty();
+}
+
+void Translate::swapLanguagePair()
+{
+    QString from;
+    QString to;
+    if (!parseLanguagePair(ui->SelectLanguage->currentText(), from, to)) {
+        return;
+    }
+
+    const QString reversed = to + "->" + from;
+    int index = ui->SelectLanguage->findText(reversed);
+
+    if (index < 0) {
+        m_config.languagePairs << reversed;
+        ConfigStore::save(m_config);
+        reloadLanguagePairs();
+        index = ui->SelectLanguage->findText(reversed);
+    }
+
+    if (index >= 0) {
+        ui->SelectLanguage->setCurrentIndex(index);
+    }
 }

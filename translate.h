@@ -35,6 +35,7 @@ private slots:
     void onConfigSaved(const AppConfig &config);
     void triggerTranslate();
     void onTranslationFinished(bool success, const QString &translatedText, const QString &errorMessage);
+    void swapLanguagePair();
 private:
     void reloadLanguagePairs();
     bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
