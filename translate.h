@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QMouseEvent>
+#include <QGuiApplication>
 
 #include "appconfig.h"
 #include "translationcachestore.h"
@@ -46,6 +47,7 @@ private:
     void applyShortcuts(const ShortcutConfig &shortcuts);
     void unregisterGlobalHotkeys();
     void registerGlobalHotkeys(const ShortcutConfig &shortcuts);
+    bool hasRegisteredHotkeys() const;
 
     Ui::Translate *ui;
     QPoint m_dragPosition;

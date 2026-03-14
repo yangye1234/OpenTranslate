@@ -6,6 +6,7 @@
 #include "settingswidget.h"
 
 #include <QHotkey>
+#include <QApplication>
 #include <QFrame>
 #include <QLinearGradient>
 #include <QListView>
@@ -104,6 +105,18 @@ Translate::Translate(QWidget *parent)
     // Some platforms (notably macOS) may fail registrations before app.exec().
     QTimer::singleShot(0, this, [this]() {
         applyShortcuts(m_config.shortcuts);
+    });
+    // Startup fallback: retry once if registration is still not ready.
+    QTimer::singleShot(1000, this, [this]() {
+        if (!hasRegisteredHotkeys()) {
+            applyShortcuts(m_config.shortcuts);
+        }
+    });
+    // When app becomes active, retry registration if none is currently active.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive && !hasRegisteredHotkeys()) {
+            applyShortcuts(m_config.shortcuts);
+        }
     });
 }
 
@@ -419,8 +432,14 @@ void Translate::applyDialogStyle()
 
 void Translate::applyShortcuts(const ShortcutConfig &shortcuts)
 {
+    m_config.shortcuts = shortcuts;
     unregisterGlobalHotkeys();
     registerGlobalHotkeys(shortcuts);
+}
+
+bool Translate::hasRegisteredHotkeys() const
+{
+    return m_swapHotkey || m_pinHotkey || m_settingsHotkey;
 }
 
 void Translate::unregisterGlobalHotkeys()
