@@ -39,6 +39,8 @@ set(PROJECT_SOURCES
         baidutranslatorservice.cpp
         configstore.h
         configstore.cpp
+        languagedetector.h
+        languagedetector.cpp
         l10n.h
         l10n.cpp
         main.cpp
@@ -47,6 +49,9 @@ set(PROJECT_SOURCES
         settingswidget.ui
         translationcachestore.cpp
         translationcachestore.h
+        translationhistorystore.cpp
+        translationhistorystore.h
+        translationresult.h
         translatorservice.h
         translate.cpp
         translate.h

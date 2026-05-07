@@ -85,6 +85,52 @@ void TranslationCacheStore::upsert(const QString &provider,
     saveEntries(entries);
 }
 
+bool TranslationCacheStore::clear() const
+{
+    return saveEntries({});
+}
+
+bool TranslationCacheStore::exportTo(const QString &filePath) const
+{
+    if (filePath.trimmed().isEmpty()) {
+        return false;
+    }
+
+    QFileInfo info(filePath);
+    QDir dir(info.absolutePath());
+    if (!dir.exists() && !dir.mkpath(".")) {
+        return false;
+    }
+
+    QSaveFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    const QJsonDocument doc(loadEntries());
+    file.write(doc.toJson(QJsonDocument::Indented));
+    return file.commit();
+}
+
+bool TranslationCacheStore::importFrom(const QString &filePath) const
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray()) {
+        return false;
+    }
+
+    bool changed = false;
+    const QJsonArray migrated = migrateIfNeeded(doc.array(), changed);
+    Q_UNUSED(changed);
+    return saveEntries(migrated);
+}
+
 QString TranslationCacheStore::cacheFilePath() const
 {
     return m_cacheFilePath;
@@ -119,22 +165,22 @@ QJsonArray TranslationCacheStore::loadEntries() const
     return migrated;
 }
 
-void TranslationCacheStore::saveEntries(const QJsonArray &entries) const
+bool TranslationCacheStore::saveEntries(const QJsonArray &entries) const
 {
     const QFileInfo info(m_cacheFilePath);
     QDir dir(info.absolutePath());
     if (!dir.exists() && !dir.mkpath(".")) {
-        return;
+        return false;
     }
 
     QSaveFile file(m_cacheFilePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        return;
+        return false;
     }
 
     const QJsonDocument doc(entries);
     file.write(doc.toJson(QJsonDocument::Indented));
-    file.commit();
+    return file.commit();
 }
 
 int TranslationCacheStore::findBidirectionalIndex(const QJsonArray &entries,

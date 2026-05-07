@@ -7,7 +7,9 @@
 
 enum class ProviderType {
     Baidu = 0,
-    Generic = 1
+    OpenAICompatible = 1,
+    DeepL = 2,
+    Dictionary = 3
 };
 
 enum class AppLanguage {
@@ -30,28 +32,56 @@ struct GenericApiConfig {
     bool enabled = false;
 };
 
+struct DeepLConfig {
+    QString authKey;
+    QString baseUrl;
+    bool enabled = false;
+};
+
+struct DictionaryConfig {
+    QString appKey;
+    QString appSecret;
+    bool enabled = false;
+};
+
+struct CacheConfig {
+    bool enabled = true;
+};
+
+struct HistoryConfig {
+    bool enabled = true;
+    int maxEntries = 200;
+};
+
 struct ShortcutConfig {
     QString swapLanguage;
     QString toggleOnTop;
     QString openSettings;
+    QString translateSelection;
 };
 
 inline ShortcutConfig defaultShortcutsForCurrentPlatform()
 {
 #if defined(Q_OS_MACOS)
-    return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Ctrl+,"};
+    return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Ctrl+,", "Ctrl+Meta+D"};
 #elif defined(Q_OS_WIN)
-    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,"};
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D"};
 #else
-    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,"};
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D"};
 #endif
 }
 
 struct AppConfig {
     BaiduConfig baidu;
     GenericApiConfig generic;
+    DeepLConfig deepL;
+    DictionaryConfig dictionary;
+    CacheConfig cache;
+    HistoryConfig history;
     ShortcutConfig shortcuts = defaultShortcutsForCurrentPlatform();
     QStringList languagePairs;
+    QStringList targetLanguages;
+    QString defaultTargetLanguage = "zh";
     ProviderType activeProvider = ProviderType::Baidu;
     AppLanguage appLanguage = AppLanguage::SimplifiedChinese;
 };

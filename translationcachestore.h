@@ -24,12 +24,15 @@ public:
                 const QString &sourceText,
                 const QString &result) const;
 
+    bool clear() const;
+    bool exportTo(const QString &filePath) const;
+    bool importFrom(const QString &filePath) const;
     QString cacheFilePath() const;
 
 private:
     QString normalizedSource(const QString &sourceText) const;
     QJsonArray loadEntries() const;
-    void saveEntries(const QJsonArray &entries) const;
+    bool saveEntries(const QJsonArray &entries) const;
     int findBidirectionalIndex(const QJsonArray &entries,
                                const QString &provider,
                                const QString &from,
