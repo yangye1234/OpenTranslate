@@ -1,11 +1,25 @@
 #include "settingswidget.h"
 #include "ui_settingswidget.h"
 #include "l10n.h"
+#include "translationcachestore.h"
+#include "translationhistorystore.h"
 
 #include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFileDialog>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QKeySequenceEdit>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
 #include <QSet>
+#include <QTextEdit>
+#include <QVBoxLayout>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
     : QWidget(parent)
@@ -13,9 +27,31 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_uiLanguage(AppLanguage::SimplifiedChinese)
     , m_isDirty(false)
     , m_isLoading(false)
+    , m_providerCombo(nullptr)
+    , m_targetLanguagesEdit(nullptr)
+    , m_defaultTargetCombo(nullptr)
+    , m_selectionShortcutEdit(nullptr)
+    , m_deepLGroup(nullptr)
+    , m_deepLEnabled(nullptr)
+    , m_deepLAuthKey(nullptr)
+    , m_deepLBaseUrl(nullptr)
+    , m_dictionaryGroup(nullptr)
+    , m_dictionaryEnabled(nullptr)
+    , m_dictionaryAppKey(nullptr)
+    , m_dictionaryAppSecret(nullptr)
+    , m_dataGroup(nullptr)
+    , m_cacheEnabled(nullptr)
+    , m_historyEnabled(nullptr)
+    , m_historyMaxEntries(nullptr)
+    , m_clearCacheButton(nullptr)
+    , m_exportCacheButton(nullptr)
+    , m_importCacheButton(nullptr)
+    , m_showHistoryButton(nullptr)
+    , m_clearHistoryButton(nullptr)
 {
     ui->setupUi(this);
     setupLanguageOptions();
+    createExtendedSettingsUi();
     applyLanguage(m_uiLanguage);
 
     connect(ui->addPairButton, &QPushButton::clicked, this, &SettingsWidget::onAddPairClicked);
@@ -31,6 +67,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui->swapShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     ui->pinShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     ui->settingsShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    m_selectionShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     ui->hotkeyStatusLabel->setVisible(false);
 
     setupDirtyTracking();
@@ -56,6 +93,20 @@ void SettingsWidget::setConfig(const AppConfig &config)
     ui->genericApiKey->setText(config.generic.apiKey);
     ui->genericPrompt->setPlainText(config.generic.promptTemplate);
 
+    m_deepLEnabled->setChecked(config.deepL.enabled);
+    m_deepLAuthKey->setText(config.deepL.authKey);
+    m_deepLBaseUrl->setText(config.deepL.baseUrl);
+
+    m_dictionaryEnabled->setChecked(config.dictionary.enabled);
+    m_dictionaryAppKey->setText(config.dictionary.appKey);
+    m_dictionaryAppSecret->setText(config.dictionary.appSecret);
+
+    m_providerCombo->setCurrentIndex(static_cast<int>(config.activeProvider));
+    refreshTargetLanguages(config.targetLanguages, config.defaultTargetLanguage);
+    m_cacheEnabled->setChecked(config.cache.enabled);
+    m_historyEnabled->setChecked(config.history.enabled);
+    m_historyMaxEntries->setText(QString::number(config.history.maxEntries));
+
     ui->appLanguageCombo->setCurrentIndex(static_cast<int>(config.appLanguage));
     m_uiLanguage = config.appLanguage;
 
@@ -70,6 +121,9 @@ void SettingsWidget::setConfig(const AppConfig &config)
     if (shortcuts.openSettings.trimmed().isEmpty()) {
         shortcuts.openSettings = defaults.openSettings;
     }
+    if (shortcuts.translateSelection.trimmed().isEmpty()) {
+        shortcuts.translateSelection = defaults.translateSelection;
+    }
 
     ui->swapShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.swapLanguage,
                                                                     QKeySequence::PortableText));
@@ -77,6 +131,8 @@ void SettingsWidget::setConfig(const AppConfig &config)
                                                                   QKeySequence::PortableText));
     ui->settingsShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.openSettings,
                                                                        QKeySequence::PortableText));
+    m_selectionShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.translateSelection,
+                                                                      QKeySequence::PortableText));
 
     applyLanguage(m_uiLanguage);
     refreshPairList(config.languagePairs);
@@ -171,8 +227,27 @@ void SettingsWidget::onSaveClicked()
     config.generic.apiKey = ui->genericApiKey->text().trimmed();
     config.generic.promptTemplate = ui->genericPrompt->toPlainText().trimmed();
 
-    config.activeProvider = ProviderType::Baidu;
+    config.deepL.enabled = m_deepLEnabled->isChecked();
+    config.deepL.authKey = m_deepLAuthKey->text().trimmed();
+    config.deepL.baseUrl = m_deepLBaseUrl->text().trimmed();
+
+    config.dictionary.enabled = m_dictionaryEnabled->isChecked();
+    config.dictionary.appKey = m_dictionaryAppKey->text().trimmed();
+    config.dictionary.appSecret = m_dictionaryAppSecret->text().trimmed();
+
+    config.activeProvider = static_cast<ProviderType>(m_providerCombo->currentIndex());
     config.languagePairs = currentPairs();
+    config.targetLanguages = currentTargetLanguages();
+    config.defaultTargetLanguage = m_defaultTargetCombo->currentText().trimmed();
+    if (config.defaultTargetLanguage.isEmpty()) {
+        config.defaultTargetLanguage = config.targetLanguages.value(0, "zh");
+    }
+    config.cache.enabled = m_cacheEnabled->isChecked();
+    config.history.enabled = m_historyEnabled->isChecked();
+    config.history.maxEntries = m_historyMaxEntries->text().trimmed().toInt();
+    if (config.history.maxEntries <= 0) {
+        config.history.maxEntries = 200;
+    }
     config.appLanguage = static_cast<AppLanguage>(ui->appLanguageCombo->currentIndex());
 
     const ShortcutConfig defaults = defaultShortcutsForCurrentPlatform();
@@ -183,6 +258,7 @@ void SettingsWidget::onSaveClicked()
     config.shortcuts.swapLanguage = toPortable(ui->swapShortcutEdit->keySequence());
     config.shortcuts.toggleOnTop = toPortable(ui->pinShortcutEdit->keySequence());
     config.shortcuts.openSettings = toPortable(ui->settingsShortcutEdit->keySequence());
+    config.shortcuts.translateSelection = toPortable(m_selectionShortcutEdit->keySequence());
 
     if (config.shortcuts.swapLanguage.isEmpty()) {
         config.shortcuts.swapLanguage = defaults.swapLanguage;
@@ -192,6 +268,9 @@ void SettingsWidget::onSaveClicked()
     }
     if (config.shortcuts.openSettings.isEmpty()) {
         config.shortcuts.openSettings = defaults.openSettings;
+    }
+    if (config.shortcuts.translateSelection.isEmpty()) {
+        config.shortcuts.translateSelection = defaults.translateSelection;
     }
 
     if (hasShortcutConflict(config.shortcuts)) {
@@ -220,12 +299,116 @@ void SettingsWidget::onAnySettingChanged()
     setDirty(true);
 }
 
+void SettingsWidget::onTargetLanguagesEdited()
+{
+    updateDefaultTargetOptions(m_defaultTargetCombo->currentText());
+    onAnySettingChanged();
+}
+
+void SettingsWidget::onClearCacheClicked()
+{
+    if (QMessageBox::question(this,
+                              L10n::text(m_uiLanguage, "settings.cache.clear.title"),
+                              L10n::text(m_uiLanguage, "settings.cache.clear.body"))
+        != QMessageBox::Yes) {
+        return;
+    }
+    const bool ok = TranslationCacheStore().clear();
+    QMessageBox::information(this,
+                             L10n::text(m_uiLanguage, ok ? "settings.operation.done" : "settings.operation.failed"),
+                             ok ? L10n::text(m_uiLanguage, "settings.cache.clear.done")
+                                : L10n::text(m_uiLanguage, "settings.cache.clear.failed"));
+}
+
+void SettingsWidget::onExportCacheClicked()
+{
+    const QString filePath = QFileDialog::getSaveFileName(this,
+                                                          L10n::text(m_uiLanguage, "settings.cache.export"),
+                                                          "translations_cache.json",
+                                                          "JSON (*.json)");
+    if (filePath.isEmpty()) {
+        return;
+    }
+    const bool ok = TranslationCacheStore().exportTo(filePath);
+    QMessageBox::information(this,
+                             L10n::text(m_uiLanguage, ok ? "settings.operation.done" : "settings.operation.failed"),
+                             ok ? L10n::text(m_uiLanguage, "settings.cache.export.done")
+                                : L10n::text(m_uiLanguage, "settings.cache.export.failed"));
+}
+
+void SettingsWidget::onImportCacheClicked()
+{
+    const QString filePath = QFileDialog::getOpenFileName(this,
+                                                          L10n::text(m_uiLanguage, "settings.cache.import"),
+                                                          QString(),
+                                                          "JSON (*.json)");
+    if (filePath.isEmpty()) {
+        return;
+    }
+    const bool ok = TranslationCacheStore().importFrom(filePath);
+    QMessageBox::information(this,
+                             L10n::text(m_uiLanguage, ok ? "settings.operation.done" : "settings.operation.failed"),
+                             ok ? L10n::text(m_uiLanguage, "settings.cache.import.done")
+                                : L10n::text(m_uiLanguage, "settings.cache.import.failed"));
+}
+
+void SettingsWidget::onShowHistoryClicked()
+{
+    const QList<TranslationHistoryEntry> entries = TranslationHistoryStore().entries();
+    QStringList lines;
+    for (const TranslationHistoryEntry &entry : entries) {
+        lines << QString("[%1] %2 %3->%4\n%5\n=> %6\n")
+                     .arg(entry.createdAt,
+                          entry.provider,
+                          entry.sourceLanguage,
+                          entry.targetLanguage,
+                          entry.sourceText,
+                          entry.translatedText);
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(L10n::text(m_uiLanguage, "settings.history.view"));
+    dialog.resize(720, 480);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *textEdit = new QTextEdit(&dialog);
+    textEdit->setReadOnly(true);
+    textEdit->setPlainText(lines.isEmpty() ? L10n::text(m_uiLanguage, "settings.history.empty") : lines.join("\n"));
+    layout->addWidget(textEdit);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    auto *copyButton = buttons->addButton(L10n::text(m_uiLanguage, "settings.history.copy_all"), QDialogButtonBox::ActionRole);
+    connect(copyButton, &QPushButton::clicked, textEdit, &QTextEdit::selectAll);
+    connect(copyButton, &QPushButton::clicked, textEdit, &QTextEdit::copy);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    dialog.exec();
+}
+
+void SettingsWidget::onClearHistoryClicked()
+{
+    if (QMessageBox::question(this,
+                              L10n::text(m_uiLanguage, "settings.history.clear.title"),
+                              L10n::text(m_uiLanguage, "settings.history.clear.body"))
+        != QMessageBox::Yes) {
+        return;
+    }
+    const bool ok = TranslationHistoryStore().clear();
+    QMessageBox::information(this,
+                             L10n::text(m_uiLanguage, ok ? "settings.operation.done" : "settings.operation.failed"),
+                             ok ? L10n::text(m_uiLanguage, "settings.history.clear.done")
+                                : L10n::text(m_uiLanguage, "settings.history.clear.failed"));
+}
+
 QString SettingsWidget::normalizePair(const QString &pair)
 {
     QString normalized = pair.trimmed();
     normalized.replace("-->", "->");
     normalized.remove(' ');
     return normalized;
+}
+
+QString SettingsWidget::normalizeLanguageCode(const QString &code)
+{
+    return code.trimmed();
 }
 
 void SettingsWidget::refreshPairList(const QStringList &pairs)
@@ -259,16 +442,156 @@ QStringList SettingsWidget::currentPairs() const
     return pairs;
 }
 
+void SettingsWidget::createExtendedSettingsUi()
+{
+    m_providerCombo = new QComboBox(this);
+    m_providerCombo->addItems({"Baidu", "OpenAI-compatible", "DeepL", "Dictionary"});
+    auto *labelProvider = new QLabel(this);
+    labelProvider->setObjectName("labelProvider");
+    labelProvider->setText(L10n::text(m_uiLanguage, "settings.label.provider"));
+    ui->formLayoutApp->addRow(labelProvider, m_providerCombo);
+
+    m_targetLanguagesEdit = new QLineEdit(this);
+    m_defaultTargetCombo = new QComboBox(this);
+    auto *targetWrapper = new QWidget(this);
+    auto *targetLayout = new QHBoxLayout(targetWrapper);
+    targetLayout->setContentsMargins(0, 0, 0, 0);
+    targetLayout->addWidget(m_targetLanguagesEdit, 2);
+    targetLayout->addWidget(m_defaultTargetCombo, 1);
+    auto *labelTargets = new QLabel(this);
+    labelTargets->setObjectName("labelTargets");
+    ui->formLayoutApp->addRow(labelTargets, targetWrapper);
+
+    auto *labelSelectionShortcut = new QLabel(this);
+    labelSelectionShortcut->setObjectName("labelSelectionShortcut");
+    m_selectionShortcutEdit = new QKeySequenceEdit(this);
+    ui->formLayoutShortcuts->insertRow(3, labelSelectionShortcut, m_selectionShortcutEdit);
+
+    m_deepLGroup = new QGroupBox(this);
+    auto *deepLLayout = new QFormLayout(m_deepLGroup);
+    m_deepLEnabled = new QCheckBox(m_deepLGroup);
+    m_deepLAuthKey = new QLineEdit(m_deepLGroup);
+    m_deepLAuthKey->setEchoMode(QLineEdit::Password);
+    m_deepLBaseUrl = new QLineEdit(m_deepLGroup);
+    deepLLayout->addRow(m_deepLEnabled);
+    deepLLayout->addRow(new QLabel("Auth Key", m_deepLGroup), m_deepLAuthKey);
+    deepLLayout->addRow(new QLabel("Base URL", m_deepLGroup), m_deepLBaseUrl);
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_deepLGroup);
+
+    m_dictionaryGroup = new QGroupBox(this);
+    auto *dictionaryLayout = new QFormLayout(m_dictionaryGroup);
+    m_dictionaryEnabled = new QCheckBox(m_dictionaryGroup);
+    m_dictionaryAppKey = new QLineEdit(m_dictionaryGroup);
+    m_dictionaryAppSecret = new QLineEdit(m_dictionaryGroup);
+    m_dictionaryAppSecret->setEchoMode(QLineEdit::Password);
+    dictionaryLayout->addRow(m_dictionaryEnabled);
+    dictionaryLayout->addRow(new QLabel("App Key", m_dictionaryGroup), m_dictionaryAppKey);
+    dictionaryLayout->addRow(new QLabel("App Secret", m_dictionaryGroup), m_dictionaryAppSecret);
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_dictionaryGroup);
+
+    m_dataGroup = new QGroupBox(this);
+    auto *dataLayout = new QVBoxLayout(m_dataGroup);
+    m_cacheEnabled = new QCheckBox(m_dataGroup);
+    m_historyEnabled = new QCheckBox(m_dataGroup);
+    m_historyMaxEntries = new QLineEdit(m_dataGroup);
+    m_historyMaxEntries->setPlaceholderText("200");
+    dataLayout->addWidget(m_cacheEnabled);
+    dataLayout->addWidget(m_historyEnabled);
+    auto *historyLimitLayout = new QHBoxLayout();
+    auto *historyLimitLabel = new QLabel(m_dataGroup);
+    historyLimitLabel->setObjectName("labelHistoryLimit");
+    historyLimitLayout->addWidget(historyLimitLabel);
+    historyLimitLayout->addWidget(m_historyMaxEntries);
+    dataLayout->addLayout(historyLimitLayout);
+
+    auto *cacheButtons = new QHBoxLayout();
+    m_clearCacheButton = new QPushButton(m_dataGroup);
+    m_exportCacheButton = new QPushButton(m_dataGroup);
+    m_importCacheButton = new QPushButton(m_dataGroup);
+    cacheButtons->addWidget(m_clearCacheButton);
+    cacheButtons->addWidget(m_exportCacheButton);
+    cacheButtons->addWidget(m_importCacheButton);
+    dataLayout->addLayout(cacheButtons);
+
+    auto *historyButtons = new QHBoxLayout();
+    m_showHistoryButton = new QPushButton(m_dataGroup);
+    m_clearHistoryButton = new QPushButton(m_dataGroup);
+    historyButtons->addWidget(m_showHistoryButton);
+    historyButtons->addWidget(m_clearHistoryButton);
+    dataLayout->addLayout(historyButtons);
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_dataGroup);
+
+    connect(m_targetLanguagesEdit, &QLineEdit::textChanged, this, &SettingsWidget::onTargetLanguagesEdited);
+    connect(m_clearCacheButton, &QPushButton::clicked, this, &SettingsWidget::onClearCacheClicked);
+    connect(m_exportCacheButton, &QPushButton::clicked, this, &SettingsWidget::onExportCacheClicked);
+    connect(m_importCacheButton, &QPushButton::clicked, this, &SettingsWidget::onImportCacheClicked);
+    connect(m_showHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onShowHistoryClicked);
+    connect(m_clearHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onClearHistoryClicked);
+}
+
+void SettingsWidget::refreshTargetLanguages(const QStringList &languages, const QString &defaultLanguage)
+{
+    QStringList normalized;
+    for (const QString &language : languages) {
+        const QString code = normalizeLanguageCode(language);
+        if (!code.isEmpty() && !normalized.contains(code)) {
+            normalized << code;
+        }
+    }
+    if (normalized.isEmpty()) {
+        normalized << "zh" << "en";
+    }
+    m_targetLanguagesEdit->setText(normalized.join(", "));
+    updateDefaultTargetOptions(defaultLanguage);
+}
+
+QStringList SettingsWidget::currentTargetLanguages() const
+{
+    QStringList out;
+    const QStringList parts = m_targetLanguagesEdit->text().split(',', Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        const QString code = normalizeLanguageCode(part);
+        if (!code.isEmpty() && !out.contains(code)) {
+            out << code;
+        }
+    }
+    if (out.isEmpty()) {
+        out << "zh" << "en";
+    }
+    return out;
+}
+
+void SettingsWidget::updateDefaultTargetOptions(const QString &selected)
+{
+    const QString current = selected.trimmed().isEmpty() ? m_defaultTargetCombo->currentText() : selected.trimmed();
+    m_defaultTargetCombo->clear();
+    m_defaultTargetCombo->addItems(currentTargetLanguages());
+    int index = m_defaultTargetCombo->findText(current);
+    if (index < 0) {
+        index = 0;
+    }
+    m_defaultTargetCombo->setCurrentIndex(index);
+}
+
 void SettingsWidget::applyLanguage(AppLanguage language)
 {
     setWindowTitle(L10n::text(language, "settings.title"));
     ui->appGroup->setTitle(L10n::text(language, "settings.group.app"));
     ui->labelAppLanguage->setText(L10n::text(language, "settings.label.app_language"));
+    if (auto *label = findChild<QLabel *>("labelProvider")) {
+        label->setText(L10n::text(language, "settings.label.provider"));
+    }
+    if (auto *label = findChild<QLabel *>("labelTargets")) {
+        label->setText(L10n::text(language, "settings.label.targets"));
+    }
 
     ui->shortcutsGroup->setTitle(L10n::text(language, "settings.group.shortcuts"));
     ui->labelSwapShortcut->setText(L10n::text(language, "settings.shortcuts.swap"));
     ui->labelPinShortcut->setText(L10n::text(language, "settings.shortcuts.pin"));
     ui->labelSettingsShortcut->setText(L10n::text(language, "settings.shortcuts.settings"));
+    if (auto *label = findChild<QLabel *>("labelSelectionShortcut")) {
+        label->setText(L10n::text(language, "settings.shortcuts.selection"));
+    }
     ui->hotkeyStatusLabel->setText(m_hotkeyStatusMessage);
     ui->hotkeyStatusLabel->setVisible(!m_hotkeyStatusMessage.isEmpty());
 
@@ -283,6 +606,24 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     ui->labelGenericModel->setText(L10n::text(language, "settings.generic.model"));
     ui->labelGenericApiKey->setText(L10n::text(language, "settings.generic.api_key"));
     ui->labelGenericPrompt->setText(L10n::text(language, "settings.generic.prompt"));
+
+    m_deepLGroup->setTitle(L10n::text(language, "settings.group.deepl"));
+    m_deepLEnabled->setText(L10n::text(language, "settings.deepl.enabled"));
+
+    m_dictionaryGroup->setTitle(L10n::text(language, "settings.group.dictionary"));
+    m_dictionaryEnabled->setText(L10n::text(language, "settings.dictionary.enabled"));
+
+    m_dataGroup->setTitle(L10n::text(language, "settings.group.data"));
+    m_cacheEnabled->setText(L10n::text(language, "settings.cache.enabled"));
+    m_historyEnabled->setText(L10n::text(language, "settings.history.enabled"));
+    if (auto *label = findChild<QLabel *>("labelHistoryLimit")) {
+        label->setText(L10n::text(language, "settings.history.max_entries"));
+    }
+    m_clearCacheButton->setText(L10n::text(language, "settings.cache.clear"));
+    m_exportCacheButton->setText(L10n::text(language, "settings.cache.export"));
+    m_importCacheButton->setText(L10n::text(language, "settings.cache.import"));
+    m_showHistoryButton->setText(L10n::text(language, "settings.history.view"));
+    m_clearHistoryButton->setText(L10n::text(language, "settings.history.clear"));
 
     ui->pairGroup->setTitle(L10n::text(language, "settings.group.pairs"));
     ui->pairEdit->setPlaceholderText(L10n::text(language, "settings.pairs.placeholder"));
@@ -324,6 +665,18 @@ void SettingsWidget::setupDirtyTracking()
     connect(ui->genericApiKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(ui->genericPrompt, &QPlainTextEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
 
+    connect(m_providerCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
+    connect(m_defaultTargetCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
+    connect(m_deepLEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_deepLAuthKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_deepLBaseUrl, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_dictionaryEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_dictionaryAppKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_dictionaryAppSecret, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_cacheEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_historyEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
+    connect(m_historyMaxEntries, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
+
     connect(ui->pairEdit, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(ui->swapShortcutEdit,
             &QKeySequenceEdit::keySequenceChanged,
@@ -334,6 +687,10 @@ void SettingsWidget::setupDirtyTracking()
             this,
             &SettingsWidget::onAnySettingChanged);
     connect(ui->settingsShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
+    connect(m_selectionShortcutEdit,
             &QKeySequenceEdit::keySequenceChanged,
             this,
             &SettingsWidget::onAnySettingChanged);
@@ -351,7 +708,8 @@ bool SettingsWidget::hasShortcutConflict(const ShortcutConfig &shortcuts)
     const QStringList values = {
         canonical(shortcuts.swapLanguage),
         canonical(shortcuts.toggleOnTop),
-        canonical(shortcuts.openSettings)
+        canonical(shortcuts.openSettings),
+        canonical(shortcuts.translateSelection)
     };
 
     for (const QString &value : values) {
