@@ -23,10 +23,37 @@
 #include <QTimer>
 
 #if defined(Q_OS_MACOS)
+#include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/Carbon.h>
+#elif defined(Q_OS_WIN)
+#include <windows.h>
 #endif
 
 namespace {
+QMimeData *cloneMimeData(const QMimeData *source)
+{
+    auto *copy = new QMimeData();
+    if (!source) {
+        return copy;
+    }
+    for (const QString &format : source->formats()) {
+        copy->setData(format, source->data(format));
+    }
+    if (source->hasText()) {
+        copy->setText(source->text());
+    }
+    if (source->hasHtml()) {
+        copy->setHtml(source->html());
+    }
+    if (source->hasUrls()) {
+        copy->setUrls(source->urls());
+    }
+    if (source->hasImage()) {
+        copy->setImageData(source->imageData());
+    }
+    return copy;
+}
+
 #if defined(Q_OS_MACOS)
 void setupMacNativeHotkeyMappings()
 {
@@ -45,6 +72,46 @@ void setupMacNativeHotkeyMappings()
                               QHotkey::NativeShortcut(kVK_ANSI_Comma, cmdKey));
     QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+D", QKeySequence::PortableText),
                               QHotkey::NativeShortcut(kVK_ANSI_D, cmdKey | controlKey));
+}
+
+bool sendNativeCopyShortcut()
+{
+    if (!AXIsProcessTrusted()) {
+        return false;
+    }
+
+    CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(source, kVK_ANSI_C, true);
+    CGEventRef keyUp = CGEventCreateKeyboardEvent(source, kVK_ANSI_C, false);
+    CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
+    CGEventSetFlags(keyUp, kCGEventFlagMaskCommand);
+    CGEventPost(kCGHIDEventTap, keyDown);
+    CGEventPost(kCGHIDEventTap, keyUp);
+    CFRelease(keyDown);
+    CFRelease(keyUp);
+    CFRelease(source);
+    return true;
+}
+#elif defined(Q_OS_WIN)
+bool sendNativeCopyShortcut()
+{
+    INPUT inputs[4] = {};
+    inputs[0].type = INPUT_KEYBOARD;
+    inputs[0].ki.wVk = VK_CONTROL;
+    inputs[1].type = INPUT_KEYBOARD;
+    inputs[1].ki.wVk = 'C';
+    inputs[2].type = INPUT_KEYBOARD;
+    inputs[2].ki.wVk = 'C';
+    inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+    inputs[3].type = INPUT_KEYBOARD;
+    inputs[3].ki.wVk = VK_CONTROL;
+    inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+    return SendInput(4, inputs, sizeof(INPUT)) == 4;
+}
+#else
+bool sendNativeCopyShortcut()
+{
+    return false;
 }
 #endif
 }
@@ -452,9 +519,6 @@ void Translate::onSpeechPlayingChanged(bool playing)
 
 void Translate::translateSelection()
 {
-    show();
-    activateWindow();
-    raise();
     requestSelectionText();
 }
 
@@ -705,19 +769,23 @@ QString Translate::selectedLanguagePair() const
 void Translate::requestSelectionText()
 {
     QClipboard *clipboard = QApplication::clipboard();
-    const QString previousText = clipboard->text();
+    QMimeData *previousMime = cloneMimeData(clipboard->mimeData());
 
-#if defined(Q_OS_MACOS)
-    QProcess::execute("osascript", {"-e", "tell application \"System Events\" to keystroke \"c\" using command down"});
-#elif defined(Q_OS_WIN)
-    QProcess::execute("powershell", {"-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c')"});
-#else
-    return;
-#endif
+    if (!sendNativeCopyShortcut()) {
+        delete previousMime;
+        show();
+        activateWindow();
+        raise();
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.selection_permission"));
+        return;
+    }
 
-    QTimer::singleShot(180, this, [this, clipboard, previousText]() {
+    QTimer::singleShot(180, this, [this, clipboard, previousMime]() {
         const QString selectedText = clipboard->text().trimmed();
-        clipboard->setText(previousText);
+        clipboard->setMimeData(previousMime);
+        show();
+        activateWindow();
+        raise();
         if (selectedText.isEmpty()) {
             ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
             return;

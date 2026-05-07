@@ -119,6 +119,7 @@ if(APPLE)
     else()
         message(WARNING "macOS icon not found: ${APP_ICON_ICNS}. Run scripts/generate_app_icons.sh first.")
     endif()
+    target_link_libraries(OpenTranslate PRIVATE "-framework ApplicationServices")
 endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

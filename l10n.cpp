@@ -15,6 +15,7 @@ QString en(const QString &key)
     if (key == "dialog.tooltip.pin") return "Pin on top";
     if (key == "dialog.tooltip.settings") return "Open settings";
     if (key == "dialog.error.no_selection") return "No selected text found.";
+    if (key == "dialog.error.selection_permission") return "Grant accessibility permission to let OpenTranslate copy selected text.";
     if (key == "dialog.hotkey.fallback.swap") return "Swap hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.pin") return "On-top hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.settings") return "Settings hotkey failed, reverted to default.";
@@ -109,6 +110,7 @@ QString zhCN(const QString &key)
     if (key == "dialog.tooltip.pin") return "窗口置顶";
     if (key == "dialog.tooltip.settings") return "打开设置";
     if (key == "dialog.error.no_selection") return "未获取到选中文本。";
+    if (key == "dialog.error.selection_permission") return "请授予辅助功能权限，以便 OpenTranslate 复制选中文本。";
     if (key == "dialog.hotkey.fallback.swap") return "语言互转快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.pin") return "置顶快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.settings") return "设置快捷键注册失败，已回退默认。";
@@ -203,6 +205,7 @@ QString zhTW(const QString &key)
     if (key == "dialog.tooltip.pin") return "視窗置頂";
     if (key == "dialog.tooltip.settings") return "開啟設定";
     if (key == "dialog.error.no_selection") return "未取得選取文字。";
+    if (key == "dialog.error.selection_permission") return "請授予輔助使用權限，以便 OpenTranslate 複製選取文字。";
     if (key == "dialog.hotkey.fallback.swap") return "語言互轉快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.pin") return "置頂快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.settings") return "設定快捷鍵註冊失敗，已回退預設。";
