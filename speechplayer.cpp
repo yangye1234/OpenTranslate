@@ -3,15 +3,49 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QtGlobal>
+
+namespace {
+QString youdaoTtsLanguageCode(const QString &language)
+{
+    const QString code = language.toLower();
+    if (code == "zh" || code == "zh-cn" || code == "zh-tw" || code == "zh-hans" || code == "zh-hant") {
+        return "zh";
+    }
+    if (code == "en" || code.startsWith("en-")) {
+        return "en";
+    }
+    if (code == "ja" || code == "jp" || code.startsWith("ja-")) {
+        return "ja";
+    }
+    if (code == "ko" || code == "kr" || code.startsWith("ko-")) {
+        return "ko";
+    }
+    if (code == "fr" || code.startsWith("fr-")) {
+        return "fr";
+    }
+    return {};
+}
+
+QString youdaoTtsUrl(const QString &text, const QString &language)
+{
+    const QString ttsLanguage = youdaoTtsLanguageCode(language);
+    if (ttsLanguage.isEmpty()) {
+        return {};
+    }
+
+    QString url = "https://dict.youdao.com/dictvoice?audio=" + QString::fromLatin1(QUrl::toPercentEncoding(text.trimmed()));
+    url += "&le=" + ttsLanguage;
+    if (ttsLanguage == "en") {
+        url += "&type=2";
+    }
+    return url;
+}
+}
 
 SpeechPlayer::SpeechPlayer(QObject *parent)
     : QObject(parent)
@@ -48,45 +82,22 @@ void SpeechPlayer::play(const QString &text, const QString &language, const QStr
         return;
     }
 
-    if (language == "en" && canUseDictionaryFallback(trimmed)) {
-        fetchDictionaryAudioUrl(trimmed);
+    if (canUseDictionaryFallback(trimmed, language)) {
+        fetchDictionaryAudioUrl(trimmed, language);
         return;
     }
 
-    emit errorOccurred("No provider or dictionary audio is available for this text.");
+    emit errorOccurred("No provider or Youdao dictionary audio is available for this text.");
 }
 
-void SpeechPlayer::fetchDictionaryAudioUrl(const QString &text)
+void SpeechPlayer::fetchDictionaryAudioUrl(const QString &text, const QString &language)
 {
-    const QUrl url("https://api.dictionaryapi.dev/api/v2/entries/en/" + QUrl::toPercentEncoding(text.trimmed()));
-    QNetworkReply *reply = m_network.get(QNetworkRequest(url));
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        const QByteArray payload = reply->readAll();
-        const QNetworkReply::NetworkError networkError = reply->error();
-        const QString networkErrorString = reply->errorString();
-        reply->deleteLater();
-
-        if (networkError != QNetworkReply::NoError) {
-            emit errorOccurred("Dictionary audio lookup failed: " + networkErrorString);
-            return;
-        }
-
-        const QJsonDocument doc = QJsonDocument::fromJson(payload);
-        if (!doc.isArray() || doc.array().isEmpty()) {
-            emit errorOccurred("Dictionary returned no audio.");
-            return;
-        }
-
-        const QJsonArray phonetics = doc.array().first().toObject().value("phonetics").toArray();
-        for (const QJsonValue &value : phonetics) {
-            const QString audioUrl = value.toObject().value("audio").toString().trimmed();
-            if (!audioUrl.isEmpty()) {
-                playAudioUrl(audioUrl);
-                return;
-            }
-        }
-        emit errorOccurred("Dictionary returned no audio.");
-    });
+    const QString audioUrl = youdaoTtsUrl(text, language);
+    if (audioUrl.isEmpty()) {
+        emit errorOccurred("Youdao dictionary audio is unavailable for this language.");
+        return;
+    }
+    playAudioUrl(audioUrl);
 }
 
 void SpeechPlayer::playAudioUrl(const QString &audioUrl)
@@ -157,10 +168,10 @@ void SpeechPlayer::playLocalFile(const QString &filePath)
     setPlaying(true);
 }
 
-bool SpeechPlayer::canUseDictionaryFallback(const QString &text) const
+bool SpeechPlayer::canUseDictionaryFallback(const QString &text, const QString &language) const
 {
-    static const QRegularExpression singleEnglishWord("^[A-Za-z][A-Za-z'-]*$");
-    return singleEnglishWord.match(text.trimmed()).hasMatch();
+    const QString trimmed = text.trimmed();
+    return !trimmed.isEmpty() && trimmed.size() <= 600 && !youdaoTtsLanguageCode(language).isEmpty();
 }
 
 void SpeechPlayer::stop()

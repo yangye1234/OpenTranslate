@@ -21,10 +21,10 @@ signals:
     void errorOccurred(const QString &message);
 
 private:
-    void fetchDictionaryAudioUrl(const QString &text);
+    void fetchDictionaryAudioUrl(const QString &text, const QString &language);
     void playAudioUrl(const QString &audioUrl);
     void playLocalFile(const QString &filePath);
-    bool canUseDictionaryFallback(const QString &text) const;
+    bool canUseDictionaryFallback(const QString &text, const QString &language) const;
     void setPlaying(bool playing);
 
 private:

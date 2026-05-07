@@ -46,8 +46,8 @@ QString en(const QString &key)
     if (key == "settings.service.openai.desc") return "Custom chat-compatible translation provider.";
     if (key == "settings.service.deepl") return "DeepL Translate";
     if (key == "settings.service.deepl.desc") return "DeepL API translation provider.";
-    if (key == "settings.service.dictionary") return "Dictionary";
-    if (key == "settings.service.dictionary.desc") return "Dictionary lookup with phonetic and audio metadata.";
+    if (key == "settings.service.dictionary") return "Youdao Dictionary";
+    if (key == "settings.service.dictionary.desc") return "Youdao dictionary lookup with phonetic and audio metadata.";
     if (key == "settings.group.baidu") return "Baidu API";
     if (key == "settings.baidu.enabled") return "Enable Baidu translator";
     if (key == "settings.baidu.app_id") return "App ID";
@@ -60,8 +60,8 @@ QString en(const QString &key)
     if (key == "settings.generic.prompt") return "Prompt Template";
     if (key == "settings.group.deepl") return "DeepL API";
     if (key == "settings.deepl.enabled") return "Enable DeepL";
-    if (key == "settings.group.dictionary") return "Dictionary";
-    if (key == "settings.dictionary.enabled") return "Enable dictionary provider";
+    if (key == "settings.group.dictionary") return "Youdao Dictionary";
+    if (key == "settings.dictionary.enabled") return "Enable Youdao dictionary";
     if (key == "settings.dictionary.no_api") return "Youdao dictionary does not require an API key.";
     if (key == "settings.group.data") return "Cache and History";
     if (key == "settings.cache.enabled") return "Enable translation cache";
@@ -155,8 +155,8 @@ QString zhCN(const QString &key)
     if (key == "settings.service.openai.desc") return "兼容 Chat API 的自定义翻译服务。";
     if (key == "settings.service.deepl") return "DeepL 翻译";
     if (key == "settings.service.deepl.desc") return "DeepL API 翻译服务。";
-    if (key == "settings.service.dictionary") return "词典服务";
-    if (key == "settings.service.dictionary.desc") return "词典查询，支持音标和语音元数据。";
+    if (key == "settings.service.dictionary") return "有道词典";
+    if (key == "settings.service.dictionary.desc") return "有道词典查询，支持音标和语音元数据。";
     if (key == "settings.group.baidu") return "百度翻译 API";
     if (key == "settings.baidu.enabled") return "启用百度翻译";
     if (key == "settings.baidu.app_id") return "App ID";
@@ -169,8 +169,8 @@ QString zhCN(const QString &key)
     if (key == "settings.generic.prompt") return "翻译提示词";
     if (key == "settings.group.deepl") return "DeepL API";
     if (key == "settings.deepl.enabled") return "启用 DeepL";
-    if (key == "settings.group.dictionary") return "词典";
-    if (key == "settings.dictionary.enabled") return "启用词典服务";
+    if (key == "settings.group.dictionary") return "有道词典";
+    if (key == "settings.dictionary.enabled") return "启用有道词典";
     if (key == "settings.dictionary.no_api") return "有道词典无需 API Key。";
     if (key == "settings.group.data") return "缓存与历史";
     if (key == "settings.cache.enabled") return "启用翻译缓存";
@@ -264,8 +264,8 @@ QString zhTW(const QString &key)
     if (key == "settings.service.openai.desc") return "相容 Chat API 的自訂翻譯服務。";
     if (key == "settings.service.deepl") return "DeepL 翻譯";
     if (key == "settings.service.deepl.desc") return "DeepL API 翻譯服務。";
-    if (key == "settings.service.dictionary") return "詞典服務";
-    if (key == "settings.service.dictionary.desc") return "詞典查詢，支援音標和語音資料。";
+    if (key == "settings.service.dictionary") return "有道詞典";
+    if (key == "settings.service.dictionary.desc") return "有道詞典查詢，支援音標和語音資料。";
     if (key == "settings.group.baidu") return "百度翻譯 API";
     if (key == "settings.baidu.enabled") return "啟用百度翻譯";
     if (key == "settings.baidu.app_id") return "App ID";
@@ -278,8 +278,8 @@ QString zhTW(const QString &key)
     if (key == "settings.generic.prompt") return "翻譯提示詞";
     if (key == "settings.group.deepl") return "DeepL API";
     if (key == "settings.deepl.enabled") return "啟用 DeepL";
-    if (key == "settings.group.dictionary") return "詞典";
-    if (key == "settings.dictionary.enabled") return "啟用詞典服務";
+    if (key == "settings.group.dictionary") return "有道詞典";
+    if (key == "settings.dictionary.enabled") return "啟用有道詞典";
     if (key == "settings.dictionary.no_api") return "有道詞典無需 API Key。";
     if (key == "settings.group.data") return "快取與歷史";
     if (key == "settings.cache.enabled") return "啟用翻譯快取";

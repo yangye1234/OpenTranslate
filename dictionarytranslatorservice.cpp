@@ -1,14 +1,19 @@
 #include "dictionarytranslatorservice.h"
 
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
-#include <QRegularExpression>
+#include <QNetworkRequest>
 #include <QTimer>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace {
+constexpr const char *kYoudaoDictUrl = "https://dict.youdao.com";
+constexpr const char *kYoudaoWebDictKey = "Mk6hqtUp33DGGtoS63tTJbMUYjRrG1Lu";
+
 TranslationResult makeDictionaryResult(bool success,
                                        const QString &from,
                                        const QString &to,
@@ -28,6 +33,141 @@ TranslationResult makeDictionaryResult(bool success,
     result.errorMessage = error;
     return result;
 }
+
+QString md5Hex(const QString &text)
+{
+    return QString::fromLatin1(QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Md5).toHex());
+}
+
+bool isChineseLanguage(const QString &language)
+{
+    const QString code = language.toLower();
+    return code == "zh" || code == "zh-cn" || code == "zh-tw" || code == "zh-hans" || code == "zh-hant";
+}
+
+QString youdaoForeignLanguage(const QString &from, const QString &to)
+{
+    auto normalizeForeign = [](const QString &language) -> QString {
+        const QString code = language.toLower();
+        if (code == "en" || code.startsWith("en-")) {
+            return "en";
+        }
+        if (code == "ja" || code == "jp" || code.startsWith("ja-")) {
+            return "ja";
+        }
+        if (code == "ko" || code == "kr" || code.startsWith("ko-")) {
+            return "ko";
+        }
+        if (code == "fr" || code.startsWith("fr-")) {
+            return "fr";
+        }
+        return {};
+    };
+
+    if (isChineseLanguage(from)) {
+        return normalizeForeign(to);
+    }
+    if (isChineseLanguage(to)) {
+        return normalizeForeign(from);
+    }
+    return normalizeForeign(from);
+}
+
+QString youdaoAudioUrl(const QString &audio, const QString &language)
+{
+    if (audio.trimmed().isEmpty()) {
+        return {};
+    }
+
+    QString url = QString::fromLatin1(kYoudaoDictUrl) + "/dictvoice?audio=" + audio.trimmed();
+    if (!language.trimmed().isEmpty()) {
+        url += "&le=" + language.trimmed();
+    }
+    return url;
+}
+
+void appendEcResult(const QJsonObject &ec, QStringList &lines, QString &phonetic, QString &audioUrl)
+{
+    const QJsonObject word = ec.value("word").toObject();
+    if (word.isEmpty()) {
+        return;
+    }
+
+    const QString usphone = word.value("usphone").toString().trimmed();
+    const QString ukphone = word.value("ukphone").toString().trimmed();
+    QStringList phonetics;
+    if (!usphone.isEmpty()) {
+        phonetics << "US [" + usphone + "]";
+    }
+    if (!ukphone.isEmpty()) {
+        phonetics << "UK [" + ukphone + "]";
+    }
+    if (!phonetics.isEmpty()) {
+        phonetic = phonetics.join(" ");
+    }
+
+    audioUrl = youdaoAudioUrl(word.value("usspeech").toString(), "en");
+    if (audioUrl.isEmpty()) {
+        audioUrl = youdaoAudioUrl(word.value("ukspeech").toString(), "en");
+    }
+
+    const QJsonArray trs = word.value("trs").toArray();
+    for (const QJsonValue &value : trs) {
+        const QJsonObject item = value.toObject();
+        const QString pos = item.value("pos").toString().trimmed();
+        const QString tran = item.value("tran").toString().trimmed();
+        if (!tran.isEmpty()) {
+            lines << (pos.isEmpty() ? tran : QString("%1. %2").arg(pos, tran));
+        }
+    }
+}
+
+void appendCeResult(const QJsonObject &ce, QStringList &lines, QString &phonetic)
+{
+    const QJsonObject word = ce.value("word").toObject();
+    if (word.isEmpty()) {
+        return;
+    }
+
+    const QString phone = word.value("phone").toString().trimmed();
+    if (!phone.isEmpty()) {
+        phonetic = phone;
+    }
+
+    const QJsonArray trs = word.value("trs").toArray();
+    for (const QJsonValue &value : trs) {
+        const QJsonObject item = value.toObject();
+        const QString text = item.value("#text").toString(item.value("text").toString()).trimmed();
+        const QString tran = item.value("tran").toString().trimmed();
+        if (!text.isEmpty() && !tran.isEmpty()) {
+            lines << QString("%1: %2").arg(text, tran);
+        } else if (!text.isEmpty()) {
+            lines << text;
+        } else if (!tran.isEmpty()) {
+            lines << tran;
+        }
+    }
+}
+
+void appendWebTranslations(const QJsonObject &webTrans, QStringList &lines)
+{
+    const QJsonArray translations = webTrans.value("web-translation").toArray();
+    for (const QJsonValue &value : translations) {
+        const QJsonObject item = value.toObject();
+        const QString key = item.value("key").toString().trimmed();
+        QStringList trans;
+        const QJsonArray transArray = item.value("trans").toArray();
+        for (const QJsonValue &transValue : transArray) {
+            const QString text = transValue.toObject().value("value").toString().trimmed();
+            if (!text.isEmpty()) {
+                trans << text;
+            }
+        }
+        if (!key.isEmpty() && !trans.isEmpty()) {
+            lines << QString("%1: %2").arg(key, trans.join("; "));
+        }
+    }
+}
 }
 
 DictionaryTranslatorService::DictionaryTranslatorService(QObject *parent)
@@ -44,18 +184,25 @@ void DictionaryTranslatorService::setConfig(const AppConfig &config)
 
 void DictionaryTranslatorService::translate(const QString &text, const QString &from, const QString &to)
 {
-    Q_UNUSED(to);
     if (!m_config.enabled) {
         QTimer::singleShot(0, this, [this, from, to]() {
-            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Dictionary provider is disabled in settings."));
+            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Youdao dictionary is disabled in settings."));
         });
         return;
     }
 
-    const QString word = text.trimmed();
-    if (word.isEmpty() || word.contains(QRegularExpression("\\s"))) {
+    const QString query = text.trimmed();
+    if (query.isEmpty()) {
         QTimer::singleShot(0, this, [this, from, to]() {
-            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Dictionary provider supports single words only."));
+            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Translation text is empty."));
+        });
+        return;
+    }
+
+    const QString foreignLanguage = youdaoForeignLanguage(from, to);
+    if (foreignLanguage.isEmpty()) {
+        QTimer::singleShot(0, this, [this, from, to]() {
+            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Youdao dictionary supports Chinese with English, Japanese, Korean, or French."));
         });
         return;
     }
@@ -63,8 +210,31 @@ void DictionaryTranslatorService::translate(const QString &text, const QString &
     m_pendingFrom = from;
     m_pendingTo = to;
 
-    QUrl url("https://api.dictionaryapi.dev/api/v2/entries/en/" + QUrl::toPercentEncoding(word));
-    m_network.get(QNetworkRequest(url));
+    const QString ww = query + "webdict";
+    const QString time = QString::number(ww.size() % 10);
+    const QString salt = md5Hex(ww);
+    const QString sign = md5Hex("web" + query + time + kYoudaoWebDictKey + salt);
+
+    QUrl url(QString::fromLatin1(kYoudaoDictUrl) + "/jsonapi_s");
+    QUrlQuery requestQuery;
+    requestQuery.addQueryItem("doctype", "json");
+    requestQuery.addQueryItem("jsonversion", "4");
+    url.setQuery(requestQuery);
+
+    QUrlQuery body;
+    body.addQueryItem("q", query);
+    body.addQueryItem("le", foreignLanguage);
+    body.addQueryItem("client", "web");
+    body.addQueryItem("t", time);
+    body.addQueryItem("sign", sign);
+    body.addQueryItem("keyfrom", "webdict");
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    request.setRawHeader("User-Agent", "Mozilla/5.0 OpenTranslate");
+    request.setRawHeader("Referer", "https://fanyi.youdao.com");
+    request.setRawHeader("Cookie", "OUTFOX_SEARCH_USER_ID=1796239350@10.110.96.157;");
+    m_network.post(request, body.toString(QUrl::FullyEncoded).toUtf8());
 }
 
 void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
@@ -75,54 +245,32 @@ void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
     reply->deleteLater();
 
     if (networkError != QNetworkReply::NoError) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Network error: " + networkErrorString));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Youdao dictionary network error: " + networkErrorString));
         return;
     }
 
     const QJsonDocument doc = QJsonDocument::fromJson(payload);
-    if (!doc.isArray() || doc.array().isEmpty()) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Dictionary returned no result."));
+    if (!doc.isObject()) {
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Youdao dictionary returned an invalid response."));
         return;
     }
 
-    const QJsonObject entry = doc.array().first().toObject();
-    QString phonetic = entry.value("phonetic").toString();
-    if (phonetic.isEmpty()) {
-        const QJsonArray phonetics = entry.value("phonetics").toArray();
-        for (const QJsonValue &value : phonetics) {
-            phonetic = value.toObject().value("text").toString();
-            if (!phonetic.isEmpty()) {
-                break;
-            }
-        }
-    }
-
-    QString audioUrl;
-    const QJsonArray phonetics = entry.value("phonetics").toArray();
-    for (const QJsonValue &value : phonetics) {
-        audioUrl = value.toObject().value("audio").toString().trimmed();
-        if (!audioUrl.isEmpty()) {
-            break;
-        }
-    }
-
+    const QJsonObject root = doc.object();
     QStringList lines;
-    const QJsonArray meanings = entry.value("meanings").toArray();
-    for (const QJsonValue &meaningValue : meanings) {
-        const QJsonObject meaning = meaningValue.toObject();
-        const QString part = meaning.value("partOfSpeech").toString();
-        const QJsonArray definitions = meaning.value("definitions").toArray();
-        if (definitions.isEmpty()) {
-            continue;
-        }
-        const QString definition = definitions.first().toObject().value("definition").toString();
-        if (!definition.isEmpty()) {
-            lines << (part.isEmpty() ? definition : QString("%1. %2").arg(part, definition));
-        }
+    QString phonetic;
+    QString audioUrl;
+
+    appendEcResult(root.value("ec").toObject(), lines, phonetic, audioUrl);
+    appendCeResult(root.value("ce").toObject(), lines, phonetic);
+    appendWebTranslations(root.value("web_trans").toObject(), lines);
+
+    const QString fanyi = root.value("fanyi").toObject().value("tran").toString().trimmed();
+    if (!fanyi.isEmpty() && !lines.contains(fanyi)) {
+        lines.prepend(fanyi);
     }
 
     if (lines.isEmpty()) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, audioUrl, "Dictionary returned no definitions."));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, audioUrl, "Youdao dictionary returned no result."));
         return;
     }
 
