@@ -32,6 +32,8 @@ QString en(const QString &key)
     if (key == "dialog.status.ocr") return "Recognizing screenshot text...";
     if (key == "dialog.error.ocr_failed") return "Screenshot OCR failed.";
     if (key == "dialog.error.ocr_empty") return "No text was recognized in the screenshot.";
+    if (key == "dialog.error.screen_recording_permission") return "Grant Screen Recording permission in System Settings, then restart OpenTranslate and try screenshot translate again.";
+    if (key == "dialog.error.screen_capture_failed") return "Screenshot capture failed. Check Screen Recording permission.";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.group.app") return "Application";
@@ -152,6 +154,8 @@ QString zhCN(const QString &key)
     if (key == "dialog.status.ocr") return "正在识别截图文字...";
     if (key == "dialog.error.ocr_failed") return "截图 OCR 失败。";
     if (key == "dialog.error.ocr_empty") return "截图中未识别到文字。";
+    if (key == "dialog.error.screen_recording_permission") return "请在系统设置中授予“屏幕录制”权限，然后重启 OpenTranslate 再使用截图翻译。";
+    if (key == "dialog.error.screen_capture_failed") return "截图失败，请检查“屏幕录制”权限。";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.group.app") return "应用";
@@ -272,6 +276,8 @@ QString zhTW(const QString &key)
     if (key == "dialog.status.ocr") return "正在識別截圖文字...";
     if (key == "dialog.error.ocr_failed") return "截圖 OCR 失敗。";
     if (key == "dialog.error.ocr_empty") return "截圖中未識別到文字。";
+    if (key == "dialog.error.screen_recording_permission") return "請在系統設定中授予「螢幕錄製」權限，然後重啟 OpenTranslate 再使用截圖翻譯。";
+    if (key == "dialog.error.screen_capture_failed") return "截圖失敗，請檢查「螢幕錄製」權限。";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.group.app") return "應用";

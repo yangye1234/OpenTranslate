@@ -25,9 +25,12 @@ void ScreenshotOverlay::begin()
 {
 #if defined(Q_OS_MACOS)
     if (!CGPreflightScreenCaptureAccess()) {
-        emit captureFailed(QStringLiteral("Grant Screen Recording permission to let OpenTranslate capture screenshots."));
-        deleteLater();
-        return;
+        CGRequestScreenCaptureAccess();
+        if (!CGPreflightScreenCaptureAccess()) {
+            emit captureFailed(QStringLiteral("dialog.error.screen_recording_permission"));
+            deleteLater();
+            return;
+        }
     }
 #endif
 
@@ -43,7 +46,7 @@ void ScreenshotOverlay::begin()
 
     m_screenPixmap = m_screen->grabWindow(0);
     if (m_screenPixmap.isNull()) {
-        emit captureFailed(QStringLiteral("Screenshot capture failed. Check Screen Recording permission."));
+        emit captureFailed(QStringLiteral("dialog.error.screen_capture_failed"));
         deleteLater();
         return;
     }

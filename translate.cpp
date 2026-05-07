@@ -576,7 +576,9 @@ void Translate::screenshotTranslate()
         show();
         activateWindow();
         raise();
-        ui->Translation->setText(message);
+        ui->Translation->setText(message.startsWith("dialog.")
+                                     ? L10n::text(m_config.appLanguage, message)
+                                     : message);
     });
     overlay->begin();
 }
