@@ -11,6 +11,7 @@ class QGroupBox;
 class QKeySequenceEdit;
 class QLineEdit;
 class QPushButton;
+class QVBoxLayout;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -52,6 +53,7 @@ private:
     void refreshPairList(const QStringList &pairs);
     QStringList currentPairs() const;
     void createExtendedSettingsUi();
+    void setupScrollableSettingsUi();
     void refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair);
     QStringList currentLanguagePairsFromEdit() const;
     void updateDefaultPairOptions(const QString &selected);
@@ -89,6 +91,7 @@ private:
     QPushButton *m_importCacheButton;
     QPushButton *m_showHistoryButton;
     QPushButton *m_clearHistoryButton;
+    QVBoxLayout *m_contentLayout;
 };
 
 #endif // SETTINGSWIDGET_H

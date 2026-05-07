@@ -9,6 +9,7 @@
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QKeySequenceEdit>
@@ -17,6 +18,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSet>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -48,8 +50,10 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_importCacheButton(nullptr)
     , m_showHistoryButton(nullptr)
     , m_clearHistoryButton(nullptr)
+    , m_contentLayout(nullptr)
 {
     ui->setupUi(this);
+    setupScrollableSettingsUi();
     setupLanguageOptions();
     createExtendedSettingsUi();
     applyLanguage(m_uiLanguage);
@@ -491,7 +495,7 @@ void SettingsWidget::createExtendedSettingsUi()
     deepLLayout->addRow(m_deepLEnabled);
     deepLLayout->addRow(new QLabel("Auth Key", m_deepLGroup), m_deepLAuthKey);
     deepLLayout->addRow(new QLabel("Base URL", m_deepLGroup), m_deepLBaseUrl);
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_deepLGroup);
+    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_deepLGroup);
 
     m_dictionaryGroup = new QGroupBox(this);
     auto *dictionaryLayout = new QFormLayout(m_dictionaryGroup);
@@ -502,7 +506,7 @@ void SettingsWidget::createExtendedSettingsUi()
     dictionaryLayout->addRow(m_dictionaryEnabled);
     dictionaryLayout->addRow(new QLabel("App Key", m_dictionaryGroup), m_dictionaryAppKey);
     dictionaryLayout->addRow(new QLabel("App Secret", m_dictionaryGroup), m_dictionaryAppSecret);
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_dictionaryGroup);
+    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_dictionaryGroup);
 
     m_dataGroup = new QGroupBox(this);
     auto *dataLayout = new QVBoxLayout(m_dataGroup);
@@ -534,7 +538,7 @@ void SettingsWidget::createExtendedSettingsUi()
     historyButtons->addWidget(m_showHistoryButton);
     historyButtons->addWidget(m_clearHistoryButton);
     dataLayout->addLayout(historyButtons);
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_dataGroup);
+    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_dataGroup);
 
     connect(m_languagePairsEdit, &QLineEdit::textChanged, this, &SettingsWidget::onLanguagePairsEdited);
     connect(m_clearCacheButton, &QPushButton::clicked, this, &SettingsWidget::onClearCacheClicked);
@@ -542,6 +546,37 @@ void SettingsWidget::createExtendedSettingsUi()
     connect(m_importCacheButton, &QPushButton::clicked, this, &SettingsWidget::onImportCacheClicked);
     connect(m_showHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onShowHistoryClicked);
     connect(m_clearHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onClearHistoryClicked);
+}
+
+void SettingsWidget::setupScrollableSettingsUi()
+{
+    setMinimumSize(560, 420);
+    resize(680, 720);
+
+    auto *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+
+    auto *content = new QWidget(scrollArea);
+    m_contentLayout = new QVBoxLayout(content);
+    m_contentLayout->setContentsMargins(0, 0, 0, 0);
+    m_contentLayout->setSpacing(ui->verticalLayout->spacing());
+
+    const QList<QWidget *> groups = {
+        ui->appGroup,
+        ui->shortcutsGroup,
+        ui->baiduGroup,
+        ui->genericGroup,
+        ui->pairGroup
+    };
+    for (QWidget *group : groups) {
+        ui->verticalLayout->removeWidget(group);
+        m_contentLayout->addWidget(group);
+    }
+    m_contentLayout->addStretch(1);
+
+    scrollArea->setWidget(content);
+    ui->verticalLayout->insertWidget(0, scrollArea, 1);
 }
 
 void SettingsWidget::refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair)
