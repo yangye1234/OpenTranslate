@@ -4,6 +4,7 @@
 #include "translationcachestore.h"
 #include "translationhistorystore.h"
 
+#include <QButtonGroup>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -18,6 +19,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QScrollArea>
 #include <QSet>
 #include <QTextEdit>
@@ -33,6 +35,8 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_languagePairsEdit(nullptr)
     , m_defaultPairCombo(nullptr)
     , m_selectionShortcutEdit(nullptr)
+    , m_servicesGroup(nullptr)
+    , m_serviceButtons(nullptr)
     , m_deepLGroup(nullptr)
     , m_deepLEnabled(nullptr)
     , m_deepLAuthKey(nullptr)
@@ -106,6 +110,19 @@ void SettingsWidget::setConfig(const AppConfig &config)
     m_dictionaryAppSecret->setText(config.dictionary.appSecret);
 
     m_providerCombo->setCurrentIndex(static_cast<int>(config.activeProvider));
+    if (auto *check = serviceEnabledCheck(ProviderType::Baidu)) {
+        check->setChecked(config.baidu.enabled);
+    }
+    if (auto *check = serviceEnabledCheck(ProviderType::OpenAICompatible)) {
+        check->setChecked(config.generic.enabled);
+    }
+    if (auto *check = serviceEnabledCheck(ProviderType::DeepL)) {
+        check->setChecked(config.deepL.enabled);
+    }
+    if (auto *check = serviceEnabledCheck(ProviderType::Dictionary)) {
+        check->setChecked(config.dictionary.enabled);
+    }
+    updateServiceSelectionUi(config.activeProvider);
     refreshLanguagePairs(config.languagePairs, config.defaultLanguagePair);
     m_cacheEnabled->setChecked(config.cache.enabled);
     m_historyEnabled->setChecked(config.history.enabled);
@@ -221,25 +238,26 @@ void SettingsWidget::onLanguagePairEdited()
 void SettingsWidget::onSaveClicked()
 {
     AppConfig config;
-    config.baidu.enabled = ui->baiduEnabled->isChecked();
+    config.baidu.enabled = serviceEnabledCheck(ProviderType::Baidu)->isChecked();
     config.baidu.appId = ui->baiduAppId->text().trimmed();
     config.baidu.appKey = ui->baiduAppKey->text().trimmed();
 
-    config.generic.enabled = ui->genericEnabled->isChecked();
+    config.generic.enabled = serviceEnabledCheck(ProviderType::OpenAICompatible)->isChecked();
     config.generic.baseUrl = ui->genericBaseUrl->text().trimmed();
     config.generic.model = ui->genericModel->text().trimmed();
     config.generic.apiKey = ui->genericApiKey->text().trimmed();
     config.generic.promptTemplate = ui->genericPrompt->toPlainText().trimmed();
 
-    config.deepL.enabled = m_deepLEnabled->isChecked();
+    config.deepL.enabled = serviceEnabledCheck(ProviderType::DeepL)->isChecked();
     config.deepL.authKey = m_deepLAuthKey->text().trimmed();
     config.deepL.baseUrl = m_deepLBaseUrl->text().trimmed();
 
-    config.dictionary.enabled = m_dictionaryEnabled->isChecked();
+    config.dictionary.enabled = serviceEnabledCheck(ProviderType::Dictionary)->isChecked();
     config.dictionary.appKey = m_dictionaryAppKey->text().trimmed();
     config.dictionary.appSecret = m_dictionaryAppSecret->text().trimmed();
 
-    config.activeProvider = static_cast<ProviderType>(m_providerCombo->currentIndex());
+    const int activeService = m_serviceButtons->checkedId();
+    config.activeProvider = activeService >= 0 ? static_cast<ProviderType>(activeService) : ProviderType::Baidu;
     config.languagePairs = currentLanguagePairsFromEdit();
     config.defaultLanguagePair = m_defaultPairCombo->currentText().trimmed();
     if (config.defaultLanguagePair.isEmpty()) {
@@ -465,10 +483,99 @@ void SettingsWidget::createExtendedSettingsUi()
 {
     m_providerCombo = new QComboBox(this);
     m_providerCombo->addItems({"Baidu", "OpenAI-compatible", "DeepL", "Dictionary"});
-    auto *labelProvider = new QLabel(this);
-    labelProvider->setObjectName("labelProvider");
-    labelProvider->setText(L10n::text(m_uiLanguage, "settings.label.provider"));
-    ui->formLayoutApp->addRow(labelProvider, m_providerCombo);
+    m_providerCombo->hide();
+
+    m_servicesGroup = new QGroupBox(this);
+    auto *servicesLayout = new QVBoxLayout(m_servicesGroup);
+    servicesLayout->setContentsMargins(12, 14, 12, 14);
+    servicesLayout->setSpacing(8);
+    m_serviceButtons = new QButtonGroup(m_servicesGroup);
+    m_serviceButtons->setExclusive(true);
+    m_serviceEnabledChecks.resize(4);
+
+    auto addSectionLabel = [servicesLayout, this](const QString &objectName, const QString &text) {
+        auto *label = new QLabel(text, m_servicesGroup);
+        label->setObjectName(objectName);
+        label->setStyleSheet("font-weight: 600; color: palette(mid); margin-top: 4px;");
+        servicesLayout->addWidget(label);
+    };
+
+    auto addServiceRow = [this, servicesLayout](ProviderType provider,
+                                                const QString &name,
+                                                const QString &description) {
+        auto *row = new QFrame(m_servicesGroup);
+        row->setFrameShape(QFrame::StyledPanel);
+        row->setObjectName(QString("serviceRow%1").arg(static_cast<int>(provider)));
+        row->setStyleSheet(
+            "QFrame { border: 1px solid palette(midlight); border-radius: 8px; }"
+            "QFrame QLabel { border: none; }"
+            "QFrame QRadioButton, QFrame QCheckBox { border: none; }");
+
+        auto *rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(12, 10, 12, 10);
+        rowLayout->setSpacing(10);
+
+        auto *radio = new QRadioButton(name, row);
+        radio->setObjectName(QString("serviceRadio%1").arg(static_cast<int>(provider)));
+        radio->setToolTip(description);
+        m_serviceButtons->addButton(radio, static_cast<int>(provider));
+
+        auto *detail = new QLabel(description, row);
+        detail->setObjectName(QString("serviceDescription%1").arg(static_cast<int>(provider)));
+        detail->setWordWrap(true);
+        detail->setStyleSheet("color: palette(mid);");
+
+        auto *textLayout = new QVBoxLayout();
+        textLayout->setContentsMargins(0, 0, 0, 0);
+        textLayout->setSpacing(2);
+        textLayout->addWidget(radio);
+        textLayout->addWidget(detail);
+
+        auto *enabled = new QCheckBox(L10n::text(m_uiLanguage, "settings.service.enabled"), row);
+        enabled->setObjectName(QString("serviceEnabled%1").arg(static_cast<int>(provider)));
+        m_serviceEnabledChecks[static_cast<int>(provider)] = enabled;
+
+        rowLayout->addLayout(textLayout, 1);
+        rowLayout->addWidget(enabled);
+        servicesLayout->addWidget(row);
+
+        connect(radio, &QRadioButton::clicked, this, [this, provider]() {
+            if (auto *check = serviceEnabledCheck(provider)) {
+                check->setChecked(true);
+            }
+            m_providerCombo->setCurrentIndex(static_cast<int>(provider));
+            updateServiceSelectionUi(provider);
+            onAnySettingChanged();
+        });
+        connect(enabled, &QCheckBox::toggled, this, [this, provider](bool checked) {
+            if (provider == ProviderType::Baidu) {
+                ui->baiduEnabled->setChecked(checked);
+            } else if (provider == ProviderType::OpenAICompatible) {
+                ui->genericEnabled->setChecked(checked);
+            } else if (provider == ProviderType::DeepL) {
+                m_deepLEnabled->setChecked(checked);
+            } else if (provider == ProviderType::Dictionary) {
+                m_dictionaryEnabled->setChecked(checked);
+            }
+            onAnySettingChanged();
+        });
+    };
+
+    addSectionLabel("labelServiceSectionFree", L10n::text(m_uiLanguage, "settings.service.section.free"));
+    addServiceRow(ProviderType::Dictionary,
+                  L10n::text(m_uiLanguage, "settings.service.dictionary"),
+                  L10n::text(m_uiLanguage, "settings.service.dictionary.desc"));
+    addSectionLabel("labelServiceSectionApiKey", L10n::text(m_uiLanguage, "settings.service.section.api_key"));
+    addServiceRow(ProviderType::Baidu,
+                  L10n::text(m_uiLanguage, "settings.service.baidu"),
+                  L10n::text(m_uiLanguage, "settings.service.baidu.desc"));
+    addServiceRow(ProviderType::OpenAICompatible,
+                  L10n::text(m_uiLanguage, "settings.service.openai"),
+                  L10n::text(m_uiLanguage, "settings.service.openai.desc"));
+    addServiceRow(ProviderType::DeepL,
+                  L10n::text(m_uiLanguage, "settings.service.deepl"),
+                  L10n::text(m_uiLanguage, "settings.service.deepl.desc"));
+    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->baiduGroup), m_servicesGroup);
 
     m_languagePairsEdit = new QLineEdit(this);
     m_defaultPairCombo = new QComboBox(this);
@@ -486,9 +593,13 @@ void SettingsWidget::createExtendedSettingsUi()
     m_selectionShortcutEdit = new QKeySequenceEdit(this);
     ui->formLayoutShortcuts->insertRow(3, labelSelectionShortcut, m_selectionShortcutEdit);
 
+    ui->baiduEnabled->hide();
+    ui->genericEnabled->hide();
+
     m_deepLGroup = new QGroupBox(this);
     auto *deepLLayout = new QFormLayout(m_deepLGroup);
     m_deepLEnabled = new QCheckBox(m_deepLGroup);
+    m_deepLEnabled->hide();
     m_deepLAuthKey = new QLineEdit(m_deepLGroup);
     m_deepLAuthKey->setEchoMode(QLineEdit::Password);
     m_deepLBaseUrl = new QLineEdit(m_deepLGroup);
@@ -500,6 +611,7 @@ void SettingsWidget::createExtendedSettingsUi()
     m_dictionaryGroup = new QGroupBox(this);
     auto *dictionaryLayout = new QFormLayout(m_dictionaryGroup);
     m_dictionaryEnabled = new QCheckBox(m_dictionaryGroup);
+    m_dictionaryEnabled->hide();
     m_dictionaryAppKey = new QLineEdit(m_dictionaryGroup);
     m_dictionaryAppSecret = new QLineEdit(m_dictionaryGroup);
     m_dictionaryAppSecret->setEchoMode(QLineEdit::Password);
@@ -628,12 +740,37 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     setWindowTitle(L10n::text(language, "settings.title"));
     ui->appGroup->setTitle(L10n::text(language, "settings.group.app"));
     ui->labelAppLanguage->setText(L10n::text(language, "settings.label.app_language"));
-    if (auto *label = findChild<QLabel *>("labelProvider")) {
-        label->setText(L10n::text(language, "settings.label.provider"));
-    }
     if (auto *label = findChild<QLabel *>("labelTargets")) {
         label->setText(L10n::text(language, "settings.label.pairs_default"));
     }
+
+    m_servicesGroup->setTitle(L10n::text(language, "settings.group.services"));
+    if (auto *label = findChild<QLabel *>("labelServiceSectionFree")) {
+        label->setText(L10n::text(language, "settings.service.section.free"));
+    }
+    if (auto *label = findChild<QLabel *>("labelServiceSectionApiKey")) {
+        label->setText(L10n::text(language, "settings.service.section.api_key"));
+    }
+    auto setServiceText = [this, language](ProviderType provider,
+                                           const QString &nameKey,
+                                           const QString &descriptionKey) {
+        const int id = static_cast<int>(provider);
+        const QString description = L10n::text(language, descriptionKey);
+        if (auto *radio = findChild<QRadioButton *>(QString("serviceRadio%1").arg(id))) {
+            radio->setText(L10n::text(language, nameKey));
+            radio->setToolTip(description);
+        }
+        if (auto *label = findChild<QLabel *>(QString("serviceDescription%1").arg(id))) {
+            label->setText(description);
+        }
+        if (auto *check = serviceEnabledCheck(provider)) {
+            check->setText(L10n::text(language, "settings.service.enabled"));
+        }
+    };
+    setServiceText(ProviderType::Dictionary, "settings.service.dictionary", "settings.service.dictionary.desc");
+    setServiceText(ProviderType::Baidu, "settings.service.baidu", "settings.service.baidu.desc");
+    setServiceText(ProviderType::OpenAICompatible, "settings.service.openai", "settings.service.openai.desc");
+    setServiceText(ProviderType::DeepL, "settings.service.deepl", "settings.service.deepl.desc");
 
     ui->shortcutsGroup->setTitle(L10n::text(language, "settings.group.shortcuts"));
     ui->labelSwapShortcut->setText(L10n::text(language, "settings.shortcuts.swap"));
@@ -744,6 +881,38 @@ void SettingsWidget::setupDirtyTracking()
             &QKeySequenceEdit::keySequenceChanged,
             this,
             &SettingsWidget::onAnySettingChanged);
+}
+
+void SettingsWidget::updateServiceSelectionUi(ProviderType provider)
+{
+    if (!m_serviceButtons) {
+        return;
+    }
+
+    if (auto *button = m_serviceButtons->button(static_cast<int>(provider))) {
+        button->setChecked(true);
+    }
+
+    for (int id = 0; id < m_serviceEnabledChecks.size(); ++id) {
+        if (auto *row = findChild<QFrame *>(QString("serviceRow%1").arg(id))) {
+            const bool active = id == static_cast<int>(provider);
+            row->setStyleSheet(active
+                                   ? "QFrame { border: 1px solid #0A84FF; border-radius: 8px; background: #0A84FF; }"
+                                     "QFrame QLabel, QFrame QRadioButton, QFrame QCheckBox { border: none; color: white; }"
+                                   : "QFrame { border: 1px solid palette(midlight); border-radius: 8px; }"
+                                     "QFrame QLabel { border: none; color: palette(mid); }"
+                                     "QFrame QRadioButton, QFrame QCheckBox { border: none; }");
+        }
+    }
+}
+
+QCheckBox *SettingsWidget::serviceEnabledCheck(ProviderType provider) const
+{
+    const int index = static_cast<int>(provider);
+    if (index < 0 || index >= m_serviceEnabledChecks.size()) {
+        return nullptr;
+    }
+    return m_serviceEnabledChecks.at(index);
 }
 
 bool SettingsWidget::hasShortcutConflict(const ShortcutConfig &shortcuts)

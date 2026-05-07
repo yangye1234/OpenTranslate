@@ -2,9 +2,11 @@
 #define SETTINGSWIDGET_H
 
 #include <QWidget>
+#include <QVector>
 
 #include "appconfig.h"
 
+class QButtonGroup;
 class QCheckBox;
 class QComboBox;
 class QGroupBox;
@@ -62,6 +64,8 @@ private:
     void setDirty(bool dirty);
     void updateSaveButtonText();
     void setupDirtyTracking();
+    void updateServiceSelectionUi(ProviderType provider);
+    QCheckBox *serviceEnabledCheck(ProviderType provider) const;
     static bool hasShortcutConflict(const ShortcutConfig &shortcuts);
 
 private:
@@ -74,6 +78,9 @@ private:
     QLineEdit *m_languagePairsEdit;
     QComboBox *m_defaultPairCombo;
     QKeySequenceEdit *m_selectionShortcutEdit;
+    QGroupBox *m_servicesGroup;
+    QButtonGroup *m_serviceButtons;
+    QVector<QCheckBox *> m_serviceEnabledChecks;
     QGroupBox *m_deepLGroup;
     QCheckBox *m_deepLEnabled;
     QLineEdit *m_deepLAuthKey;
