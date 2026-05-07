@@ -167,8 +167,6 @@ Translate::Translate(QWidget *parent)
     ui->Fixed->setDefault(false);
     ui->PlayAudio->setAutoDefault(false);
     ui->PlayAudio->setDefault(false);
-    ui->Screenshot->setAutoDefault(false);
-    ui->Screenshot->setDefault(false);
     ui->Settings->setAutoDefault(false);
     ui->Settings->setDefault(false);
 
@@ -194,7 +192,6 @@ Translate::Translate(QWidget *parent)
 
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->PlayAudio, &QPushButton::clicked, this, &Translate::toggleSpeech);
-    connect(ui->Screenshot, &QPushButton::clicked, this, &Translate::screenshotTranslate);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
     connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
@@ -616,7 +613,6 @@ void Translate::applyLanguage(AppLanguage language)
     ui->PlayAudio->setToolTip(L10n::text(language, m_speechPlayer->isPlaying()
                                                        ? "dialog.tooltip.stop_audio"
                                                        : "dialog.tooltip.play_audio"));
-    ui->Screenshot->setToolTip(L10n::text(language, "dialog.tooltip.screenshot"));
     ui->Fixed->setToolTip(L10n::text(language, "dialog.tooltip.pin"));
     ui->Settings->setToolTip(L10n::text(language, "dialog.tooltip.settings"));
 }
