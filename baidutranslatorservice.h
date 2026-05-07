@@ -27,6 +27,8 @@ private:
 private:
     QNetworkAccessManager m_network;
     BaiduConfig m_baiduConfig;
+    QString m_pendingFrom;
+    QString m_pendingTo;
 };
 
 #endif // BAIDUTRANSLATORSERVICE_H

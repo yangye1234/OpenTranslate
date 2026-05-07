@@ -2,7 +2,11 @@
 #include "./ui_translate.h"
 #include "baidutranslatorservice.h"
 #include "configstore.h"
+#include "deepltranslatorservice.h"
+#include "dictionarytranslatorservice.h"
+#include "languagedetector.h"
 #include "l10n.h"
+#include "openaitranslatorservice.h"
 #include "settingswidget.h"
 
 #include <QHotkey>
@@ -44,6 +48,9 @@ Translate::Translate(QWidget *parent)
     , m_dragPosition(0, 0)
     , m_settingsWidget(nullptr)
     , m_baiduService(new BaiduTranslatorService(this))
+    , m_openAIService(new OpenAITranslatorService(this))
+    , m_deepLService(new DeepLTranslatorService(this))
+    , m_dictionaryService(new DictionaryTranslatorService(this))
     , m_swapHotkey(nullptr)
     , m_pinHotkey(nullptr)
     , m_settingsHotkey(nullptr)
@@ -93,11 +100,20 @@ Translate::Translate(QWidget *parent)
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
     connect(m_baiduService, &BaiduTranslatorService::translationFinished,
             this, &Translate::onTranslationFinished);
+    connect(m_openAIService, &OpenAITranslatorService::translationFinished,
+            this, &Translate::onTranslationFinished);
+    connect(m_deepLService, &DeepLTranslatorService::translationFinished,
+            this, &Translate::onTranslationFinished);
+    connect(m_dictionaryService, &DictionaryTranslatorService::translationFinished,
+            this, &Translate::onTranslationFinished);
 
     m_config = ConfigStore::load();
     applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
+    m_openAIService->setConfig(m_config);
+    m_deepLService->setConfig(m_config);
+    m_dictionaryService->setConfig(m_config);
 #if defined(Q_OS_MACOS)
     setupMacNativeHotkeyMappings();
 #endif
@@ -200,6 +216,9 @@ void Translate::onConfigSaved(const AppConfig &config)
     applyLanguage(m_config.appLanguage);
     reloadLanguagePairs();
     m_baiduService->setConfig(m_config);
+    m_openAIService->setConfig(m_config);
+    m_deepLService->setConfig(m_config);
+    m_dictionaryService->setConfig(m_config);
     applyShortcuts(m_config.shortcuts);
 }
 
@@ -242,8 +261,12 @@ void Translate::triggerTranslate()
         return;
     }
 
-    const QString provider = "baidu";
-    const auto cached = m_translationCache.find(provider, from, to, sourceText);
+    if (from == "auto") {
+        from = LanguageDetector::detect(sourceText);
+    }
+
+    const QString provider = activeProviderKey();
+    const auto cached = m_config.cache.enabled ? m_translationCache.find(provider, from, to, sourceText) : std::nullopt;
     if (cached.has_value()) {
         m_pendingSourceText.clear();
         m_pendingFrom.clear();
@@ -263,23 +286,23 @@ void Translate::triggerTranslate()
     m_isTranslating = true;
     ui->OriginalText->setEnabled(false);
     ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.translating"));
-    m_baiduService->translate(sourceText, from, to);
+    activeTranslatorService()->translate(sourceText, from, to);
 }
 
-void Translate::onTranslationFinished(bool success, const QString &translatedText, const QString &errorMessage)
+void Translate::onTranslationFinished(const TranslationResult &result)
 {
     m_isTranslating = false;
     ui->OriginalText->setEnabled(true);
 
-    if (success) {
-        if (!m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
+    if (result.success) {
+        if (m_config.cache.enabled && !m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
             m_translationCache.upsert(m_pendingProvider,
-                                      m_pendingFrom,
-                                      m_pendingTo,
+                                      result.sourceLanguage.isEmpty() ? m_pendingFrom : result.sourceLanguage,
+                                      result.targetLanguage.isEmpty() ? m_pendingTo : result.targetLanguage,
                                       m_pendingSourceText,
-                                      translatedText);
+                                      result.translatedText);
         }
-        ui->Translation->setText(translatedText);
+        ui->Translation->setText(result.translatedText);
         ui->Translation->setFocus();
         ui->Translation->selectAll();
         m_pendingSourceText.clear();
@@ -289,7 +312,7 @@ void Translate::onTranslationFinished(bool success, const QString &translatedTex
         return;
     }
 
-    if (!m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
+    if (m_config.cache.enabled && !m_pendingProvider.isEmpty() && !m_pendingSourceText.isEmpty()) {
         const auto fallback = m_translationCache.find(m_pendingProvider,
                                                       m_pendingFrom,
                                                       m_pendingTo,
@@ -306,11 +329,41 @@ void Translate::onTranslationFinished(bool success, const QString &translatedTex
         }
     }
 
-    ui->Translation->setText(errorMessage);
+    ui->Translation->setText(result.errorMessage);
     m_pendingSourceText.clear();
     m_pendingFrom.clear();
     m_pendingTo.clear();
     m_pendingProvider.clear();
+}
+
+QString Translate::activeProviderKey() const
+{
+    switch (m_config.activeProvider) {
+    case ProviderType::OpenAICompatible:
+        return "openai";
+    case ProviderType::DeepL:
+        return "deepl";
+    case ProviderType::Dictionary:
+        return "dictionary";
+    case ProviderType::Baidu:
+    default:
+        return "baidu";
+    }
+}
+
+TranslatorService *Translate::activeTranslatorService() const
+{
+    switch (m_config.activeProvider) {
+    case ProviderType::OpenAICompatible:
+        return m_openAIService;
+    case ProviderType::DeepL:
+        return m_deepLService;
+    case ProviderType::Dictionary:
+        return m_dictionaryService;
+    case ProviderType::Baidu:
+    default:
+        return m_baiduService;
+    }
 }
 
 bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &to) const

@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "appconfig.h"
+#include "translationresult.h"
 
 class TranslatorService : public QObject
 {
@@ -17,7 +18,7 @@ public:
     virtual void translate(const QString &text, const QString &from, const QString &to) = 0;
 
 signals:
-    void translationFinished(bool success, const QString &translatedText, const QString &errorMessage);
+    void translationFinished(const TranslationResult &result);
 };
 
 #endif // TRANSLATORSERVICE_H

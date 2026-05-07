@@ -39,11 +39,17 @@ set(PROJECT_SOURCES
         baidutranslatorservice.cpp
         configstore.h
         configstore.cpp
+        deepltranslatorservice.h
+        deepltranslatorservice.cpp
+        dictionarytranslatorservice.h
+        dictionarytranslatorservice.cpp
         languagedetector.h
         languagedetector.cpp
         l10n.h
         l10n.cpp
         main.cpp
+        openaitranslatorservice.h
+        openaitranslatorservice.cpp
         settingswidget.cpp
         settingswidget.h
         settingswidget.ui

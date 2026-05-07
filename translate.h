@@ -9,6 +9,7 @@
 
 #include "appconfig.h"
 #include "translationcachestore.h"
+#include "translationresult.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -18,6 +19,10 @@ QT_END_NAMESPACE
 
 class SettingsWidget;
 class BaiduTranslatorService;
+class DeepLTranslatorService;
+class DictionaryTranslatorService;
+class OpenAITranslatorService;
+class TranslatorService;
 class QHotkey;
 
 class Translate : public QDialog
@@ -37,11 +42,13 @@ private slots:
     void openSettings();
     void onConfigSaved(const AppConfig &config);
     void triggerTranslate();
-    void onTranslationFinished(bool success, const QString &translatedText, const QString &errorMessage);
+    void onTranslationFinished(const TranslationResult &result);
     void swapLanguagePair();
 private:
     void reloadLanguagePairs();
     bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
+    QString activeProviderKey() const;
+    TranslatorService *activeTranslatorService() const;
     void applyLanguage(AppLanguage language);
     void applyDialogStyle();
     void applyShortcuts(const ShortcutConfig &shortcuts);
@@ -54,6 +61,9 @@ private:
     AppConfig m_config;
     SettingsWidget *m_settingsWidget;
     BaiduTranslatorService *m_baiduService;
+    OpenAITranslatorService *m_openAIService;
+    DeepLTranslatorService *m_deepLService;
+    DictionaryTranslatorService *m_dictionaryService;
     QHotkey *m_swapHotkey;
     QHotkey *m_pinHotkey;
     QHotkey *m_settingsHotkey;

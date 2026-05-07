@@ -9,6 +9,24 @@
 #include <QTimer>
 #include <QUrlQuery>
 
+namespace {
+TranslationResult makeResult(bool success,
+                             const QString &from,
+                             const QString &to,
+                             const QString &translatedText,
+                             const QString &errorMessage)
+{
+    TranslationResult result;
+    result.success = success;
+    result.provider = "baidu";
+    result.sourceLanguage = from;
+    result.targetLanguage = to;
+    result.translatedText = translatedText;
+    result.errorMessage = errorMessage;
+    return result;
+}
+}
+
 BaiduTranslatorService::BaiduTranslatorService(QObject *parent)
     : TranslatorService(parent)
 {
@@ -24,18 +42,21 @@ void BaiduTranslatorService::setConfig(const AppConfig &config)
 void BaiduTranslatorService::translate(const QString &text, const QString &from, const QString &to)
 {
     if (!m_baiduConfig.enabled) {
-        QTimer::singleShot(0, this, [this]() {
-            emit translationFinished(false, QString(), "Baidu translator is disabled in settings.");
+        QTimer::singleShot(0, this, [this, from, to]() {
+            emit translationFinished(makeResult(false, from, to, QString(), "Baidu translator is disabled in settings."));
         });
         return;
     }
 
     if (m_baiduConfig.appId.isEmpty() || m_baiduConfig.appKey.isEmpty()) {
-        QTimer::singleShot(0, this, [this]() {
-            emit translationFinished(false, QString(), "Missing Baidu AppID or AppKey.");
+        QTimer::singleShot(0, this, [this, from, to]() {
+            emit translationFinished(makeResult(false, from, to, QString(), "Missing Baidu AppID or AppKey."));
         });
         return;
     }
+
+    m_pendingFrom = from;
+    m_pendingTo = to;
 
     const QString salt = QString::number(QDateTime::currentMSecsSinceEpoch());
     const QString sign = generateSign(m_baiduConfig.appId, text, salt, m_baiduConfig.appKey);
@@ -62,13 +83,13 @@ void BaiduTranslatorService::onReplyFinished(QNetworkReply *reply)
     reply->deleteLater();
 
     if (networkError != QNetworkReply::NoError) {
-        emit translationFinished(false, QString(), "Network error: " + networkErrorString);
+        emit translationFinished(makeResult(false, m_pendingFrom, m_pendingTo, QString(), "Network error: " + networkErrorString));
         return;
     }
 
     const QJsonDocument doc = QJsonDocument::fromJson(payload);
     if (!doc.isObject()) {
-        emit translationFinished(false, QString(), "Invalid response from translation service.");
+        emit translationFinished(makeResult(false, m_pendingFrom, m_pendingTo, QString(), "Invalid response from translation service."));
         return;
     }
 
@@ -76,7 +97,7 @@ void BaiduTranslatorService::onReplyFinished(QNetworkReply *reply)
     if (obj.contains("error_code")) {
         const QString errorCode = obj.value("error_code").toString();
         const QString errorMsg = obj.value("error_msg").toString("Unknown error");
-        emit translationFinished(false, QString(), QString("Baidu error %1: %2").arg(errorCode, errorMsg));
+        emit translationFinished(makeResult(false, m_pendingFrom, m_pendingTo, QString(), QString("Baidu error %1: %2").arg(errorCode, errorMsg)));
         return;
     }
 
@@ -88,11 +109,11 @@ void BaiduTranslatorService::onReplyFinished(QNetworkReply *reply)
     }
 
     if (lines.isEmpty()) {
-        emit translationFinished(false, QString(), "No translation result returned.");
+        emit translationFinished(makeResult(false, m_pendingFrom, m_pendingTo, QString(), "No translation result returned."));
         return;
     }
 
-    emit translationFinished(true, lines.join("\n"), QString());
+    emit translationFinished(makeResult(true, m_pendingFrom, m_pendingTo, lines.join("\n"), QString()));
 }
 
 QString BaiduTranslatorService::generateSign(const QString &appId,
