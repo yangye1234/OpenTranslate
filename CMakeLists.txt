@@ -53,6 +53,8 @@ set(PROJECT_SOURCES
         settingswidget.cpp
         settingswidget.h
         settingswidget.ui
+        speechplayer.cpp
+        speechplayer.h
         translationcachestore.cpp
         translationcachestore.h
         translationhistorystore.cpp

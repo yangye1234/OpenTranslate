@@ -9,14 +9,19 @@ QString en(const QString &key)
     if (key == "dialog.error.invalid_pair") return "Invalid language pair.";
     if (key == "dialog.status.translating") return "Translating...";
     if (key == "dialog.tooltip.swap") return "Swap language direction";
+    if (key == "dialog.tooltip.play_audio") return "Play translation audio";
+    if (key == "dialog.tooltip.stop_audio") return "Stop audio";
     if (key == "dialog.tooltip.pin") return "Pin on top";
     if (key == "dialog.tooltip.settings") return "Open settings";
+    if (key == "dialog.error.no_selection") return "No selected text found.";
     if (key == "dialog.hotkey.fallback.swap") return "Swap hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.pin") return "On-top hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.settings") return "Settings hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.fallback.selection") return "Translate selection hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.failed.swap") return "Swap hotkey registration failed.";
     if (key == "dialog.hotkey.failed.pin") return "On-top hotkey registration failed.";
     if (key == "dialog.hotkey.failed.settings") return "Settings hotkey registration failed.";
+    if (key == "dialog.hotkey.failed.selection") return "Translate selection hotkey registration failed.";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.group.app") return "Application";
@@ -97,14 +102,19 @@ QString zhCN(const QString &key)
     if (key == "dialog.error.invalid_pair") return "语言方向格式不正确。";
     if (key == "dialog.status.translating") return "翻译中...";
     if (key == "dialog.tooltip.swap") return "切换翻译方向";
+    if (key == "dialog.tooltip.play_audio") return "播放译文语音";
+    if (key == "dialog.tooltip.stop_audio") return "停止语音";
     if (key == "dialog.tooltip.pin") return "窗口置顶";
     if (key == "dialog.tooltip.settings") return "打开设置";
+    if (key == "dialog.error.no_selection") return "未获取到选中文本。";
     if (key == "dialog.hotkey.fallback.swap") return "语言互转快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.pin") return "置顶快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.settings") return "设置快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.fallback.selection") return "翻译选中文本快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.failed.swap") return "语言互转快捷键注册失败。";
     if (key == "dialog.hotkey.failed.pin") return "置顶快捷键注册失败。";
     if (key == "dialog.hotkey.failed.settings") return "设置快捷键注册失败。";
+    if (key == "dialog.hotkey.failed.selection") return "翻译选中文本快捷键注册失败。";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.group.app") return "应用";
@@ -185,14 +195,19 @@ QString zhTW(const QString &key)
     if (key == "dialog.error.invalid_pair") return "語言方向格式不正確。";
     if (key == "dialog.status.translating") return "翻譯中...";
     if (key == "dialog.tooltip.swap") return "切換翻譯方向";
+    if (key == "dialog.tooltip.play_audio") return "播放譯文語音";
+    if (key == "dialog.tooltip.stop_audio") return "停止語音";
     if (key == "dialog.tooltip.pin") return "視窗置頂";
     if (key == "dialog.tooltip.settings") return "開啟設定";
+    if (key == "dialog.error.no_selection") return "未取得選取文字。";
     if (key == "dialog.hotkey.fallback.swap") return "語言互轉快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.pin") return "置頂快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.settings") return "設定快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.fallback.selection") return "翻譯選取文字快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.failed.swap") return "語言互轉快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.pin") return "置頂快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.settings") return "設定快捷鍵註冊失敗。";
+    if (key == "dialog.hotkey.failed.selection") return "翻譯選取文字快捷鍵註冊失敗。";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.group.app") return "應用";

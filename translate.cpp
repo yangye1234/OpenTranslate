@@ -8,12 +8,17 @@
 #include "l10n.h"
 #include "openaitranslatorservice.h"
 #include "settingswidget.h"
+#include "speechplayer.h"
+#include "translationhistorystore.h"
 
 #include <QHotkey>
 #include <QApplication>
+#include <QClipboard>
 #include <QFrame>
 #include <QLinearGradient>
 #include <QListView>
+#include <QMimeData>
+#include <QProcess>
 #include <QPushButton>
 #include <QTimer>
 
@@ -38,6 +43,8 @@ void setupMacNativeHotkeyMappings()
                               QHotkey::NativeShortcut(kVK_ANSI_F, cmdKey | controlKey));
     QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+,", QKeySequence::PortableText),
                               QHotkey::NativeShortcut(kVK_ANSI_Comma, cmdKey));
+    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+D", QKeySequence::PortableText),
+                              QHotkey::NativeShortcut(kVK_ANSI_D, cmdKey | controlKey));
 }
 #endif
 }
@@ -51,9 +58,11 @@ Translate::Translate(QWidget *parent)
     , m_openAIService(new OpenAITranslatorService(this))
     , m_deepLService(new DeepLTranslatorService(this))
     , m_dictionaryService(new DictionaryTranslatorService(this))
+    , m_speechPlayer(new SpeechPlayer(this))
     , m_swapHotkey(nullptr)
     , m_pinHotkey(nullptr)
     , m_settingsHotkey(nullptr)
+    , m_selectionHotkey(nullptr)
     , m_isTranslating(false)
 {
     ui->setupUi(this);
@@ -71,6 +80,8 @@ Translate::Translate(QWidget *parent)
     ui->Convert->setDefault(false);
     ui->Fixed->setAutoDefault(false);
     ui->Fixed->setDefault(false);
+    ui->PlayAudio->setAutoDefault(false);
+    ui->PlayAudio->setDefault(false);
     ui->Settings->setAutoDefault(false);
     ui->Settings->setDefault(false);
 
@@ -95,6 +106,7 @@ Translate::Translate(QWidget *parent)
     ui->SelectLanguage->setView(languageView);
 
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
+    connect(ui->PlayAudio, &QPushButton::clicked, this, &Translate::toggleSpeech);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
     connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
@@ -106,6 +118,8 @@ Translate::Translate(QWidget *parent)
             this, &Translate::onTranslationFinished);
     connect(m_dictionaryService, &DictionaryTranslatorService::translationFinished,
             this, &Translate::onTranslationFinished);
+    connect(m_speechPlayer, &SpeechPlayer::playingChanged,
+            this, &Translate::onSpeechPlayingChanged);
 
     m_config = ConfigStore::load();
     applyLanguage(m_config.appLanguage);
@@ -228,8 +242,10 @@ void Translate::reloadLanguagePairs()
     ui->SelectLanguage->clear();
 
     QStringList pairs = m_config.languagePairs;
-    if (pairs.isEmpty()) {
-        pairs << "en->zh" << "zh->en";
+    if (!m_config.targetLanguages.isEmpty()) {
+        pairs = m_config.targetLanguages;
+    } else if (pairs.isEmpty()) {
+        pairs << "zh" << "en";
     }
     ui->SelectLanguage->addItems(pairs);
     for (int i = 0; i < ui->SelectLanguage->count(); ++i) {
@@ -254,15 +270,15 @@ void Translate::triggerTranslate()
         return;
     }
 
-    QString from;
-    QString to;
-    if (!parseLanguagePair(ui->SelectLanguage->currentText(), from, to)) {
-        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.invalid_pair"));
-        return;
-    }
+    m_speechPlayer->stop();
+    QString from = LanguageDetector::detect(sourceText);
+    QString to = currentTargetLanguage();
 
     if (from == "auto") {
-        from = LanguageDetector::detect(sourceText);
+        from = "auto";
+    }
+    if (to.isEmpty()) {
+        to = LanguageDetector::autoTargetFor(from, m_config.defaultTargetLanguage);
     }
 
     const QString provider = activeProviderKey();
@@ -302,7 +318,22 @@ void Translate::onTranslationFinished(const TranslationResult &result)
                                       m_pendingSourceText,
                                       result.translatedText);
         }
-        ui->Translation->setText(result.translatedText);
+        const QString displayText = result.phoneticText.isEmpty()
+                                        ? result.translatedText
+                                        : QString("%1\n%2").arg(result.phoneticText, result.translatedText);
+        ui->Translation->setText(displayText);
+        m_lastTranslatedText = result.translatedText;
+        m_lastTargetLanguage = result.targetLanguage.isEmpty() ? m_pendingTo : result.targetLanguage;
+        if (m_config.history.enabled) {
+            TranslationHistoryEntry entry;
+            entry.sourceText = m_pendingSourceText;
+            entry.translatedText = result.translatedText;
+            entry.phoneticText = result.phoneticText;
+            entry.provider = result.provider;
+            entry.sourceLanguage = result.sourceLanguage.isEmpty() ? m_pendingFrom : result.sourceLanguage;
+            entry.targetLanguage = m_lastTargetLanguage;
+            TranslationHistoryStore().add(entry, m_config.history.maxEntries);
+        }
         ui->Translation->setFocus();
         ui->Translation->selectAll();
         m_pendingSourceText.clear();
@@ -330,6 +361,8 @@ void Translate::onTranslationFinished(const TranslationResult &result)
     }
 
     ui->Translation->setText(result.errorMessage);
+    m_lastTranslatedText.clear();
+    m_lastTargetLanguage.clear();
     m_pendingSourceText.clear();
     m_pendingFrom.clear();
     m_pendingTo.clear();
@@ -384,25 +417,47 @@ bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &t
 
 void Translate::swapLanguagePair()
 {
-    QString from;
-    QString to;
-    if (!parseLanguagePair(ui->SelectLanguage->currentText(), from, to)) {
-        return;
-    }
-
-    const QString reversed = to + "->" + from;
-    int index = ui->SelectLanguage->findText(reversed);
-
-    if (index < 0) {
-        m_config.languagePairs << reversed;
-        ConfigStore::save(m_config);
-        reloadLanguagePairs();
-        index = ui->SelectLanguage->findText(reversed);
-    }
+    const QString source = LanguageDetector::detect(ui->OriginalText->text());
+    const QString target = LanguageDetector::autoTargetFor(source, m_config.defaultTargetLanguage);
+    int index = ui->SelectLanguage->findText(target);
 
     if (index >= 0) {
         ui->SelectLanguage->setCurrentIndex(index);
+    } else if (!target.isEmpty()) {
+        m_config.targetLanguages << target;
+        ConfigStore::save(m_config);
+        reloadLanguagePairs();
+        ui->SelectLanguage->setCurrentText(target);
     }
+}
+
+void Translate::toggleSpeech()
+{
+    if (m_speechPlayer->isPlaying()) {
+        m_speechPlayer->stop();
+        return;
+    }
+
+    const QString text = m_lastTranslatedText.trimmed().isEmpty() ? ui->Translation->text() : m_lastTranslatedText;
+    if (text.trimmed().isEmpty()) {
+        return;
+    }
+    m_speechPlayer->play(text, m_lastTargetLanguage);
+}
+
+void Translate::onSpeechPlayingChanged(bool playing)
+{
+    ui->PlayAudio->setText(playing ? "■" : "▶");
+    ui->PlayAudio->setToolTip(L10n::text(m_config.appLanguage,
+                                         playing ? "dialog.tooltip.stop_audio" : "dialog.tooltip.play_audio"));
+}
+
+void Translate::translateSelection()
+{
+    show();
+    activateWindow();
+    raise();
+    requestSelectionText();
 }
 
 void Translate::applyLanguage(AppLanguage language)
@@ -411,6 +466,9 @@ void Translate::applyLanguage(AppLanguage language)
     ui->OriginalText->setPlaceholderText(L10n::text(language, "dialog.original.placeholder"));
     ui->Translation->setPlaceholderText(L10n::text(language, "dialog.result.placeholder"));
     ui->Convert->setToolTip(L10n::text(language, "dialog.tooltip.swap"));
+    ui->PlayAudio->setToolTip(L10n::text(language, m_speechPlayer->isPlaying()
+                                                       ? "dialog.tooltip.stop_audio"
+                                                       : "dialog.tooltip.play_audio"));
     ui->Fixed->setToolTip(L10n::text(language, "dialog.tooltip.pin"));
     ui->Settings->setToolTip(L10n::text(language, "dialog.tooltip.settings"));
 }
@@ -492,7 +550,7 @@ void Translate::applyShortcuts(const ShortcutConfig &shortcuts)
 
 bool Translate::hasRegisteredHotkeys() const
 {
-    return m_swapHotkey || m_pinHotkey || m_settingsHotkey;
+    return m_swapHotkey || m_pinHotkey || m_settingsHotkey || m_selectionHotkey;
 }
 
 void Translate::unregisterGlobalHotkeys()
@@ -508,6 +566,7 @@ void Translate::unregisterGlobalHotkeys()
     cleanup(m_swapHotkey);
     cleanup(m_pinHotkey);
     cleanup(m_settingsHotkey);
+    cleanup(m_selectionHotkey);
 }
 
 void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
@@ -589,6 +648,12 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
                    &Translate::openSettings,
                    L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.settings"),
                    L10n::text(m_config.appLanguage, "dialog.hotkey.failed.settings"));
+    registerAction(m_selectionHotkey,
+                   finalShortcuts.translateSelection,
+                   defaults.translateSelection,
+                   &Translate::translateSelection,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.selection"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.selection"));
 
     m_hotkeyStatusMessage = warnings.join("\n");
 
@@ -603,4 +668,41 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
         }
         m_settingsWidget->setHotkeyStatusMessage(m_hotkeyStatusMessage);
     }
+}
+
+QString Translate::currentTargetLanguage() const
+{
+    const QString current = ui->SelectLanguage->currentText().trimmed();
+    QString from;
+    QString to;
+    if (parseLanguagePair(current, from, to)) {
+        return to;
+    }
+    return current.isEmpty() ? m_config.defaultTargetLanguage : current;
+}
+
+void Translate::requestSelectionText()
+{
+    QClipboard *clipboard = QApplication::clipboard();
+    const QString previousText = clipboard->text();
+
+#if defined(Q_OS_MACOS)
+    QProcess::execute("osascript", {"-e", "tell application \"System Events\" to keystroke \"c\" using command down"});
+#elif defined(Q_OS_WIN)
+    QProcess::execute("powershell", {"-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c')"});
+#else
+    return;
+#endif
+
+    QTimer::singleShot(180, this, [this, clipboard, previousText]() {
+        const QString selectedText = clipboard->text().trimmed();
+        clipboard->setText(previousText);
+        if (selectedText.isEmpty()) {
+            ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
+            return;
+        }
+        ui->OriginalText->setText(selectedText);
+        ui->OriginalText->setFocus();
+        triggerTranslate();
+    });
 }
