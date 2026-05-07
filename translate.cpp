@@ -187,6 +187,9 @@ Translate::Translate(QWidget *parent)
             this, &Translate::onTranslationFinished);
     connect(m_speechPlayer, &SpeechPlayer::playingChanged,
             this, &Translate::onSpeechPlayingChanged);
+    connect(m_speechPlayer, &SpeechPlayer::errorOccurred, this, [this](const QString &message) {
+        ui->Translation->setText(message);
+    });
 
     m_config = ConfigStore::load();
     applyLanguage(m_config.appLanguage);
@@ -352,6 +355,9 @@ void Translate::triggerTranslate()
         m_pendingTo.clear();
         m_pendingProvider.clear();
         ui->Translation->setText(cached.value());
+        m_lastTranslatedText = cached.value();
+        m_lastTargetLanguage = to;
+        m_lastAudioUrl.clear();
         ui->Translation->setFocus();
         ui->Translation->selectAll();
         return;
@@ -387,6 +393,7 @@ void Translate::onTranslationFinished(const TranslationResult &result)
         ui->Translation->setText(displayText);
         m_lastTranslatedText = result.translatedText;
         m_lastTargetLanguage = result.targetLanguage.isEmpty() ? m_pendingTo : result.targetLanguage;
+        m_lastAudioUrl = result.audioUrl;
         if (m_config.history.enabled) {
             TranslationHistoryEntry entry;
             entry.sourceText = m_pendingSourceText;
@@ -426,6 +433,7 @@ void Translate::onTranslationFinished(const TranslationResult &result)
     ui->Translation->setText(result.errorMessage);
     m_lastTranslatedText.clear();
     m_lastTargetLanguage.clear();
+    m_lastAudioUrl.clear();
     m_pendingSourceText.clear();
     m_pendingFrom.clear();
     m_pendingTo.clear();
@@ -507,7 +515,7 @@ void Translate::toggleSpeech()
     if (text.trimmed().isEmpty()) {
         return;
     }
-    m_speechPlayer->play(text, m_lastTargetLanguage);
+    m_speechPlayer->play(text, m_lastTargetLanguage, m_lastAudioUrl);
 }
 
 void Translate::onSpeechPlayingChanged(bool playing)

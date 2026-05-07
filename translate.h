@@ -85,5 +85,6 @@ private:
     QString m_pendingProvider;
     QString m_lastTranslatedText;
     QString m_lastTargetLanguage;
+    QString m_lastAudioUrl;
 };
 #endif // TRANSLATE_H

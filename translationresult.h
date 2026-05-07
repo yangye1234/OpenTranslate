@@ -10,6 +10,7 @@ struct TranslationResult {
     QString targetLanguage;
     QString translatedText;
     QString phoneticText;
+    QString audioUrl;
     QString errorMessage;
 };
 

@@ -14,6 +14,7 @@ TranslationResult makeDictionaryResult(bool success,
                                        const QString &to,
                                        const QString &text,
                                        const QString &phonetic,
+                                       const QString &audioUrl,
                                        const QString &error)
 {
     TranslationResult result;
@@ -23,6 +24,7 @@ TranslationResult makeDictionaryResult(bool success,
     result.targetLanguage = to;
     result.translatedText = text;
     result.phoneticText = phonetic;
+    result.audioUrl = audioUrl;
     result.errorMessage = error;
     return result;
 }
@@ -45,7 +47,7 @@ void DictionaryTranslatorService::translate(const QString &text, const QString &
     Q_UNUSED(to);
     if (!m_config.enabled) {
         QTimer::singleShot(0, this, [this, from, to]() {
-            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), "Dictionary provider is disabled in settings."));
+            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Dictionary provider is disabled in settings."));
         });
         return;
     }
@@ -53,7 +55,7 @@ void DictionaryTranslatorService::translate(const QString &text, const QString &
     const QString word = text.trimmed();
     if (word.isEmpty() || word.contains(QRegularExpression("\\s"))) {
         QTimer::singleShot(0, this, [this, from, to]() {
-            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), "Dictionary provider supports single words only."));
+            emit translationFinished(makeDictionaryResult(false, from, to, QString(), QString(), QString(), "Dictionary provider supports single words only."));
         });
         return;
     }
@@ -73,13 +75,13 @@ void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
     reply->deleteLater();
 
     if (networkError != QNetworkReply::NoError) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), "Network error: " + networkErrorString));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Network error: " + networkErrorString));
         return;
     }
 
     const QJsonDocument doc = QJsonDocument::fromJson(payload);
     if (!doc.isArray() || doc.array().isEmpty()) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), "Dictionary returned no result."));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), QString(), QString(), "Dictionary returned no result."));
         return;
     }
 
@@ -92,6 +94,15 @@ void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
             if (!phonetic.isEmpty()) {
                 break;
             }
+        }
+    }
+
+    QString audioUrl;
+    const QJsonArray phonetics = entry.value("phonetics").toArray();
+    for (const QJsonValue &value : phonetics) {
+        audioUrl = value.toObject().value("audio").toString().trimmed();
+        if (!audioUrl.isEmpty()) {
+            break;
         }
     }
 
@@ -111,9 +122,9 @@ void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
     }
 
     if (lines.isEmpty()) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, "Dictionary returned no definitions."));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, audioUrl, "Dictionary returned no definitions."));
         return;
     }
 
-    emit translationFinished(makeDictionaryResult(true, m_pendingFrom, m_pendingTo, lines.join("\n"), phonetic, QString()));
+    emit translationFinished(makeDictionaryResult(true, m_pendingFrom, m_pendingTo, lines.join("\n"), phonetic, audioUrl, QString()));
 }

@@ -1,6 +1,16 @@
 #include "speechplayer.h"
 
-#include <QTimer>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QRegularExpression>
+#include <QStandardPaths>
+#include <QUrl>
 #include <QtGlobal>
 
 SpeechPlayer::SpeechPlayer(QObject *parent)
@@ -24,7 +34,7 @@ bool SpeechPlayer::isPlaying() const
     return m_isPlaying;
 }
 
-void SpeechPlayer::play(const QString &text, const QString &language)
+void SpeechPlayer::play(const QString &text, const QString &language, const QString &audioUrl)
 {
     const QString trimmed = text.trimmed();
     if (trimmed.isEmpty()) {
@@ -33,24 +43,110 @@ void SpeechPlayer::play(const QString &text, const QString &language)
 
     stop();
 
-#if defined(Q_OS_MACOS)
-    QStringList args;
-    if (language == "en") {
-        args << "-r" << "150";
+    if (!audioUrl.trimmed().isEmpty()) {
+        playAudioUrl(audioUrl.trimmed());
+        return;
     }
-    args << trimmed;
-    m_process.start("say", args);
+
+    if (language == "en" && canUseDictionaryFallback(trimmed)) {
+        fetchDictionaryAudioUrl(trimmed);
+        return;
+    }
+
+    emit errorOccurred("No provider or dictionary audio is available for this text.");
+}
+
+void SpeechPlayer::fetchDictionaryAudioUrl(const QString &text)
+{
+    const QUrl url("https://api.dictionaryapi.dev/api/v2/entries/en/" + QUrl::toPercentEncoding(text.trimmed()));
+    QNetworkReply *reply = m_network.get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray payload = reply->readAll();
+        const QNetworkReply::NetworkError networkError = reply->error();
+        const QString networkErrorString = reply->errorString();
+        reply->deleteLater();
+
+        if (networkError != QNetworkReply::NoError) {
+            emit errorOccurred("Dictionary audio lookup failed: " + networkErrorString);
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(payload);
+        if (!doc.isArray() || doc.array().isEmpty()) {
+            emit errorOccurred("Dictionary returned no audio.");
+            return;
+        }
+
+        const QJsonArray phonetics = doc.array().first().toObject().value("phonetics").toArray();
+        for (const QJsonValue &value : phonetics) {
+            const QString audioUrl = value.toObject().value("audio").toString().trimmed();
+            if (!audioUrl.isEmpty()) {
+                playAudioUrl(audioUrl);
+                return;
+            }
+        }
+        emit errorOccurred("Dictionary returned no audio.");
+    });
+}
+
+void SpeechPlayer::playAudioUrl(const QString &audioUrl)
+{
+    const QUrl url(audioUrl);
+    if (!url.isValid()) {
+        emit errorOccurred("Audio URL is invalid.");
+        return;
+    }
+
+    QNetworkReply *reply = m_network.get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, audioUrl]() {
+        const QByteArray payload = reply->readAll();
+        const QNetworkReply::NetworkError networkError = reply->error();
+        const QString networkErrorString = reply->errorString();
+        reply->deleteLater();
+
+        if (networkError != QNetworkReply::NoError || payload.isEmpty()) {
+            emit errorOccurred("Audio download failed: " + networkErrorString);
+            return;
+        }
+
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+        if (tempDir.isEmpty()) {
+            tempDir = QDir::tempPath();
+        }
+        const QByteArray hash = QCryptographicHash::hash(audioUrl.toUtf8(), QCryptographicHash::Md5).toHex();
+        const QString suffix = audioUrl.contains(".mp3", Qt::CaseInsensitive) ? ".mp3" : ".audio";
+        const QString filePath = QDir(tempDir).filePath("opentranslate_audio_" + QString::fromLatin1(hash) + suffix);
+
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            emit errorOccurred("Could not write temporary audio file.");
+            return;
+        }
+        file.write(payload);
+        file.close();
+        playLocalFile(filePath);
+    });
+}
+
+void SpeechPlayer::playLocalFile(const QString &filePath)
+{
+#if defined(Q_OS_MACOS)
+    m_process.start("afplay", {filePath});
 #elif defined(Q_OS_WIN)
-    const QString escaped = trimmed;
+    QString windowsPath = filePath;
+    windowsPath.replace("\\", "/").replace("'", "''");
     const QString script = QString(
-        "Add-Type -AssemblyName System.Speech; "
-        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-        "$s.Speak(%1);")
-        .arg(QString("\"%1\"").arg(escaped.toHtmlEscaped().replace("\"", "`\"")));
+        "Add-Type -AssemblyName PresentationCore; "
+        "$p = New-Object System.Windows.Media.MediaPlayer; "
+        "$p.Open([Uri](%1)); "
+        "$p.Play(); "
+        "Start-Sleep -Milliseconds 300; "
+        "while ($p.NaturalDuration.HasTimeSpan -and $p.Position -lt $p.NaturalDuration.TimeSpan) { Start-Sleep -Milliseconds 100 };")
+        .arg(QString("'file:///%1'").arg(windowsPath));
     m_process.start("powershell", {"-NoProfile", "-Command", script});
 #else
-    Q_UNUSED(language);
-    emit errorOccurred("Text-to-speech is not supported on this platform yet.");
+    Q_UNUSED(filePath);
+    emit errorOccurred("Audio playback is not supported on this platform yet.");
     return;
 #endif
 
@@ -59,6 +155,12 @@ void SpeechPlayer::play(const QString &text, const QString &language)
         return;
     }
     setPlaying(true);
+}
+
+bool SpeechPlayer::canUseDictionaryFallback(const QString &text) const
+{
+    static const QRegularExpression singleEnglishWord("^[A-Za-z][A-Za-z'-]*$");
+    return singleEnglishWord.match(text.trimmed()).hasMatch();
 }
 
 void SpeechPlayer::stop()

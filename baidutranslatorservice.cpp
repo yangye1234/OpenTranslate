@@ -10,6 +10,18 @@
 #include <QUrlQuery>
 
 namespace {
+QString baiduTtsUrl(const QString &text, const QString &language)
+{
+    QUrl url("https://fanyi.baidu.com/gettts");
+    QUrlQuery query;
+    query.addQueryItem("lan", language == "auto" ? "en" : language);
+    query.addQueryItem("text", text);
+    query.addQueryItem("spd", "3");
+    query.addQueryItem("source", "web");
+    url.setQuery(query);
+    return url.toString();
+}
+
 TranslationResult makeResult(bool success,
                              const QString &from,
                              const QString &to,
@@ -22,6 +34,9 @@ TranslationResult makeResult(bool success,
     result.sourceLanguage = from;
     result.targetLanguage = to;
     result.translatedText = translatedText;
+    if (success && !translatedText.trimmed().isEmpty()) {
+        result.audioUrl = baiduTtsUrl(translatedText, to);
+    }
     result.errorMessage = errorMessage;
     return result;
 }
