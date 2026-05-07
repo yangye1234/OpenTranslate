@@ -63,15 +63,26 @@ void setupMacNativeHotkeyMappings()
     }
     initialized = true;
 
-    // QHotkey may fail mapping these on some macOS input sources, so provide native mapping explicitly.
-    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+T", QKeySequence::PortableText),
-                              QHotkey::NativeShortcut(kVK_ANSI_T, cmdKey | controlKey));
-    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+F", QKeySequence::PortableText),
-                              QHotkey::NativeShortcut(kVK_ANSI_F, cmdKey | controlKey));
+    // QHotkey may fail mapping Ctrl+Meta letter shortcuts on some macOS input sources.
+    const struct {
+        const char *key;
+        UInt32 nativeKey;
+    } letterMappings[] = {
+        {"A", kVK_ANSI_A}, {"B", kVK_ANSI_B}, {"C", kVK_ANSI_C}, {"D", kVK_ANSI_D},
+        {"E", kVK_ANSI_E}, {"F", kVK_ANSI_F}, {"G", kVK_ANSI_G}, {"H", kVK_ANSI_H},
+        {"I", kVK_ANSI_I}, {"J", kVK_ANSI_J}, {"K", kVK_ANSI_K}, {"L", kVK_ANSI_L},
+        {"M", kVK_ANSI_M}, {"N", kVK_ANSI_N}, {"O", kVK_ANSI_O}, {"P", kVK_ANSI_P},
+        {"Q", kVK_ANSI_Q}, {"R", kVK_ANSI_R}, {"S", kVK_ANSI_S}, {"T", kVK_ANSI_T},
+        {"U", kVK_ANSI_U}, {"V", kVK_ANSI_V}, {"W", kVK_ANSI_W}, {"X", kVK_ANSI_X},
+        {"Y", kVK_ANSI_Y}, {"Z", kVK_ANSI_Z},
+    };
+    for (const auto &mapping : letterMappings) {
+        QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+" + QString::fromLatin1(mapping.key),
+                                                           QKeySequence::PortableText),
+                                  QHotkey::NativeShortcut(mapping.nativeKey, cmdKey | controlKey));
+    }
     QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+,", QKeySequence::PortableText),
                               QHotkey::NativeShortcut(kVK_ANSI_Comma, cmdKey));
-    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+D", QKeySequence::PortableText),
-                              QHotkey::NativeShortcut(kVK_ANSI_D, cmdKey | controlKey));
 }
 
 bool sendNativeCopyShortcut()
