@@ -6,7 +6,9 @@
 #include "dictionarytranslatorservice.h"
 #include "languagedetector.h"
 #include "l10n.h"
+#include "ocrservice.h"
 #include "openaitranslatorservice.h"
+#include "screenshotoverlay.h"
 #include "settingswidget.h"
 #include "speechplayer.h"
 #include "translationhistorystore.h"
@@ -138,12 +140,14 @@ Translate::Translate(QWidget *parent)
     , m_openAIService(new OpenAITranslatorService(this))
     , m_deepLService(new DeepLTranslatorService(this))
     , m_dictionaryService(new DictionaryTranslatorService(this))
+    , m_ocrService(OcrService::create(this))
     , m_speechPlayer(new SpeechPlayer(this))
     , m_swapHotkey(nullptr)
     , m_pinHotkey(nullptr)
     , m_settingsHotkey(nullptr)
     , m_selectionHotkey(nullptr)
     , m_speechHotkey(nullptr)
+    , m_screenshotHotkey(nullptr)
     , m_isTranslating(false)
 {
     ui->setupUi(this);
@@ -163,6 +167,8 @@ Translate::Translate(QWidget *parent)
     ui->Fixed->setDefault(false);
     ui->PlayAudio->setAutoDefault(false);
     ui->PlayAudio->setDefault(false);
+    ui->Screenshot->setAutoDefault(false);
+    ui->Screenshot->setDefault(false);
     ui->Settings->setAutoDefault(false);
     ui->Settings->setDefault(false);
 
@@ -188,6 +194,7 @@ Translate::Translate(QWidget *parent)
 
     connect(ui->Fixed,&QPushButton::clicked,this,&Translate::toggleStayOnTop);
     connect(ui->PlayAudio, &QPushButton::clicked, this, &Translate::toggleSpeech);
+    connect(ui->Screenshot, &QPushButton::clicked, this, &Translate::screenshotTranslate);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
     connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
@@ -204,6 +211,8 @@ Translate::Translate(QWidget *parent)
     connect(m_speechPlayer, &SpeechPlayer::errorOccurred, this, [this](const QString &message) {
         ui->Translation->setText(message);
     });
+    connect(m_ocrService, &OcrService::recognitionFinished,
+            this, &Translate::onOcrFinished);
 
     m_config = ConfigStore::load();
     applyLanguage(m_config.appLanguage);
@@ -552,6 +561,50 @@ void Translate::translateSelection()
     requestSelectionText();
 }
 
+void Translate::screenshotTranslate()
+{
+    auto *overlay = new ScreenshotOverlay();
+    connect(overlay, &ScreenshotOverlay::captureFinished, this, [this](const QImage &image) {
+        show();
+        activateWindow();
+        raise();
+        ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.ocr"));
+        m_ocrService->recognizeText(image, ocrLanguageHints());
+    });
+    connect(overlay, &ScreenshotOverlay::captureFailed, this, [this](const QString &message) {
+        show();
+        activateWindow();
+        raise();
+        ui->Translation->setText(message);
+    });
+    overlay->begin();
+}
+
+void Translate::onOcrFinished(bool success, const QString &text, const QString &errorMessage)
+{
+    show();
+    activateWindow();
+    raise();
+    ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
+
+    const QString ocrText = text.trimmed();
+    if (!success) {
+        ui->Translation->setText(errorMessage.trimmed().isEmpty()
+                                     ? L10n::text(m_config.appLanguage, "dialog.error.ocr_failed")
+                                     : errorMessage);
+        return;
+    }
+    if (ocrText.isEmpty()) {
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.ocr_empty"));
+        return;
+    }
+
+    ui->OriginalText->setText(ocrText);
+    ui->OriginalText->selectAll();
+    triggerTranslate();
+}
+
 void Translate::applyLanguage(AppLanguage language)
 {
     setWindowTitle(L10n::text(language, "dialog.title"));
@@ -561,6 +614,7 @@ void Translate::applyLanguage(AppLanguage language)
     ui->PlayAudio->setToolTip(L10n::text(language, m_speechPlayer->isPlaying()
                                                        ? "dialog.tooltip.stop_audio"
                                                        : "dialog.tooltip.play_audio"));
+    ui->Screenshot->setToolTip(L10n::text(language, "dialog.tooltip.screenshot"));
     ui->Fixed->setToolTip(L10n::text(language, "dialog.tooltip.pin"));
     ui->Settings->setToolTip(L10n::text(language, "dialog.tooltip.settings"));
 }
@@ -642,7 +696,7 @@ void Translate::applyShortcuts(const ShortcutConfig &shortcuts)
 
 bool Translate::hasRegisteredHotkeys() const
 {
-    return m_swapHotkey || m_pinHotkey || m_settingsHotkey || m_selectionHotkey || m_speechHotkey;
+    return m_swapHotkey || m_pinHotkey || m_settingsHotkey || m_selectionHotkey || m_speechHotkey || m_screenshotHotkey;
 }
 
 void Translate::unregisterGlobalHotkeys()
@@ -660,6 +714,7 @@ void Translate::unregisterGlobalHotkeys()
     cleanup(m_settingsHotkey);
     cleanup(m_selectionHotkey);
     cleanup(m_speechHotkey);
+    cleanup(m_screenshotHotkey);
 }
 
 void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
@@ -684,6 +739,9 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
         const QKeySequence defaultSeq = buildSequence(defaultShortcut);
         const QString configuredCanonical = configuredSeq.toString(QKeySequence::PortableText);
         const QString defaultCanonical = defaultSeq.toString(QKeySequence::PortableText);
+        if (configuredCanonical.isEmpty() && defaultCanonical.isEmpty()) {
+            return;
+        }
 
         auto tryRegister = [this, slot](const QKeySequence &sequence) -> QHotkey * {
             if (sequence.isEmpty()) {
@@ -753,6 +811,12 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
                    &Translate::toggleSpeech,
                    L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.speech"),
                    L10n::text(m_config.appLanguage, "dialog.hotkey.failed.speech"));
+    registerAction(m_screenshotHotkey,
+                   finalShortcuts.screenshotTranslate,
+                   defaults.screenshotTranslate,
+                   &Translate::screenshotTranslate,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.screenshot"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.screenshot"));
 
     m_hotkeyStatusMessage = warnings.join("\n");
 
@@ -831,4 +895,16 @@ void Translate::requestSelectionText()
         ui->OriginalText->setFocus();
         triggerTranslate();
     });
+}
+
+QStringList Translate::ocrLanguageHints() const
+{
+    QString left;
+    QString right;
+    QStringList hints;
+    if (parseLanguagePair(selectedLanguagePair(), left, right)) {
+        hints << left << right;
+    }
+    hints.removeDuplicates();
+    return hints;
 }

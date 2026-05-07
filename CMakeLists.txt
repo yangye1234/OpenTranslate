@@ -48,8 +48,12 @@ set(PROJECT_SOURCES
         l10n.h
         l10n.cpp
         main.cpp
+        ocrservice.cpp
+        ocrservice.h
         openaitranslatorservice.h
         openaitranslatorservice.cpp
+        screenshotoverlay.cpp
+        screenshotoverlay.h
         settingswidget.cpp
         settingswidget.h
         settingswidget.ui

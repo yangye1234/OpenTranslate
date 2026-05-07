@@ -36,6 +36,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_defaultPairCombo(nullptr)
     , m_selectionShortcutEdit(nullptr)
     , m_speechShortcutEdit(nullptr)
+    , m_screenshotShortcutEdit(nullptr)
     , m_servicesGroup(nullptr)
     , m_serviceButtons(nullptr)
     , m_deepLGroup(nullptr)
@@ -76,6 +77,8 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui->pinShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     ui->settingsShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     m_selectionShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    m_speechShortcutEdit->setFocusPolicy(Qt::ClickFocus);
+    m_screenshotShortcutEdit->setFocusPolicy(Qt::ClickFocus);
     ui->hotkeyStatusLabel->setVisible(false);
 
     setupDirtyTracking();
@@ -147,6 +150,9 @@ void SettingsWidget::setConfig(const AppConfig &config)
     if (shortcuts.toggleSpeech.trimmed().isEmpty()) {
         shortcuts.toggleSpeech = defaults.toggleSpeech;
     }
+    if (shortcuts.screenshotTranslate.trimmed().isEmpty()) {
+        shortcuts.screenshotTranslate = defaults.screenshotTranslate;
+    }
 
     ui->swapShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.swapLanguage,
                                                                     QKeySequence::PortableText));
@@ -158,6 +164,8 @@ void SettingsWidget::setConfig(const AppConfig &config)
                                                                       QKeySequence::PortableText));
     m_speechShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.toggleSpeech,
                                                                    QKeySequence::PortableText));
+    m_screenshotShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.screenshotTranslate,
+                                                                       QKeySequence::PortableText));
 
     applyLanguage(m_uiLanguage);
     ui->pairEdit->clear();
@@ -287,6 +295,7 @@ void SettingsWidget::onSaveClicked()
     config.shortcuts.openSettings = toPortable(ui->settingsShortcutEdit->keySequence());
     config.shortcuts.translateSelection = toPortable(m_selectionShortcutEdit->keySequence());
     config.shortcuts.toggleSpeech = toPortable(m_speechShortcutEdit->keySequence());
+    config.shortcuts.screenshotTranslate = toPortable(m_screenshotShortcutEdit->keySequence());
 
     if (config.shortcuts.swapLanguage.isEmpty()) {
         config.shortcuts.swapLanguage = defaults.swapLanguage;
@@ -302,6 +311,9 @@ void SettingsWidget::onSaveClicked()
     }
     if (config.shortcuts.toggleSpeech.isEmpty()) {
         config.shortcuts.toggleSpeech = defaults.toggleSpeech;
+    }
+    if (config.shortcuts.screenshotTranslate.isEmpty()) {
+        config.shortcuts.screenshotTranslate = defaults.screenshotTranslate;
     }
 
     if (hasShortcutConflict(config.shortcuts)) {
@@ -653,6 +665,11 @@ void SettingsWidget::createExtendedSettingsUi()
     m_speechShortcutEdit = new QKeySequenceEdit(this);
     ui->formLayoutShortcuts->insertRow(4, labelSpeechShortcut, m_speechShortcutEdit);
 
+    auto *labelScreenshotShortcut = new QLabel(this);
+    labelScreenshotShortcut->setObjectName("labelScreenshotShortcut");
+    m_screenshotShortcutEdit = new QKeySequenceEdit(this);
+    ui->formLayoutShortcuts->insertRow(5, labelScreenshotShortcut, m_screenshotShortcutEdit);
+
     m_dataGroup = new QGroupBox(this);
     auto *dataLayout = new QVBoxLayout(m_dataGroup);
     m_cacheEnabled = new QCheckBox(m_dataGroup);
@@ -801,6 +818,9 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     if (auto *label = findChild<QLabel *>("labelSpeechShortcut")) {
         label->setText(L10n::text(language, "settings.shortcuts.speech"));
     }
+    if (auto *label = findChild<QLabel *>("labelScreenshotShortcut")) {
+        label->setText(L10n::text(language, "settings.shortcuts.screenshot"));
+    }
     ui->hotkeyStatusLabel->setText(m_hotkeyStatusMessage);
     ui->hotkeyStatusLabel->setVisible(!m_hotkeyStatusMessage.isEmpty());
 
@@ -910,6 +930,10 @@ void SettingsWidget::setupDirtyTracking()
             &QKeySequenceEdit::keySequenceChanged,
             this,
             &SettingsWidget::onAnySettingChanged);
+    connect(m_screenshotShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
 }
 
 void SettingsWidget::updateServiceSelectionUi(ProviderType provider)
@@ -978,7 +1002,8 @@ bool SettingsWidget::hasShortcutConflict(const ShortcutConfig &shortcuts)
         canonical(shortcuts.toggleOnTop),
         canonical(shortcuts.openSettings),
         canonical(shortcuts.translateSelection),
-        canonical(shortcuts.toggleSpeech)
+        canonical(shortcuts.toggleSpeech),
+        canonical(shortcuts.screenshotTranslate)
     };
 
     for (const QString &value : values) {

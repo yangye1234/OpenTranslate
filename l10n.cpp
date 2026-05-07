@@ -12,6 +12,7 @@ QString en(const QString &key)
     if (key == "dialog.tooltip.swap") return "Swap language direction";
     if (key == "dialog.tooltip.play_audio") return "Play translation audio";
     if (key == "dialog.tooltip.stop_audio") return "Stop audio";
+    if (key == "dialog.tooltip.screenshot") return "Screenshot translate";
     if (key == "dialog.tooltip.pin") return "Pin on top";
     if (key == "dialog.tooltip.settings") return "Open settings";
     if (key == "dialog.error.no_selection") return "No selected text found.";
@@ -21,11 +22,16 @@ QString en(const QString &key)
     if (key == "dialog.hotkey.fallback.settings") return "Settings hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.selection") return "Translate selection hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.speech") return "Audio hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.fallback.screenshot") return "Screenshot hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.failed.swap") return "Swap hotkey registration failed.";
     if (key == "dialog.hotkey.failed.pin") return "On-top hotkey registration failed.";
     if (key == "dialog.hotkey.failed.settings") return "Settings hotkey registration failed.";
     if (key == "dialog.hotkey.failed.selection") return "Translate selection hotkey registration failed.";
     if (key == "dialog.hotkey.failed.speech") return "Audio hotkey registration failed.";
+    if (key == "dialog.hotkey.failed.screenshot") return "Screenshot hotkey registration failed.";
+    if (key == "dialog.status.ocr") return "Recognizing screenshot text...";
+    if (key == "dialog.error.ocr_failed") return "Screenshot OCR failed.";
+    if (key == "dialog.error.ocr_empty") return "No text was recognized in the screenshot.";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.group.app") return "Application";
@@ -40,6 +46,7 @@ QString en(const QString &key)
     if (key == "settings.shortcuts.settings") return "Open Settings";
     if (key == "settings.shortcuts.selection") return "Translate Selection";
     if (key == "settings.shortcuts.speech") return "Play / Pause Audio";
+    if (key == "settings.shortcuts.screenshot") return "Screenshot Translate";
     if (key == "settings.service.section.free") return "No API Key";
     if (key == "settings.service.section.api_key") return "Requires API Key";
     if (key == "settings.service.enabled") return "Enabled";
@@ -125,6 +132,7 @@ QString zhCN(const QString &key)
     if (key == "dialog.tooltip.swap") return "切换翻译方向";
     if (key == "dialog.tooltip.play_audio") return "播放译文语音";
     if (key == "dialog.tooltip.stop_audio") return "停止语音";
+    if (key == "dialog.tooltip.screenshot") return "截图翻译";
     if (key == "dialog.tooltip.pin") return "窗口置顶";
     if (key == "dialog.tooltip.settings") return "打开设置";
     if (key == "dialog.error.no_selection") return "未获取到选中文本。";
@@ -134,11 +142,16 @@ QString zhCN(const QString &key)
     if (key == "dialog.hotkey.fallback.settings") return "设置快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.selection") return "翻译选中文本快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.speech") return "播放语音快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.fallback.screenshot") return "截图翻译快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.failed.swap") return "语言互转快捷键注册失败。";
     if (key == "dialog.hotkey.failed.pin") return "置顶快捷键注册失败。";
     if (key == "dialog.hotkey.failed.settings") return "设置快捷键注册失败。";
     if (key == "dialog.hotkey.failed.selection") return "翻译选中文本快捷键注册失败。";
     if (key == "dialog.hotkey.failed.speech") return "播放语音快捷键注册失败。";
+    if (key == "dialog.hotkey.failed.screenshot") return "截图翻译快捷键注册失败。";
+    if (key == "dialog.status.ocr") return "正在识别截图文字...";
+    if (key == "dialog.error.ocr_failed") return "截图 OCR 失败。";
+    if (key == "dialog.error.ocr_empty") return "截图中未识别到文字。";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.group.app") return "应用";
@@ -153,6 +166,7 @@ QString zhCN(const QString &key)
     if (key == "settings.shortcuts.settings") return "打开设置";
     if (key == "settings.shortcuts.selection") return "翻译选中文本";
     if (key == "settings.shortcuts.speech") return "播放/暂停语音";
+    if (key == "settings.shortcuts.screenshot") return "截图翻译";
     if (key == "settings.service.section.free") return "无需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "启用";
@@ -218,7 +232,7 @@ QString zhCN(const QString &key)
     if (key == "settings.error.duplicate.title") return "重复";
     if (key == "settings.error.duplicate.body") return "该语言方向已存在。";
     if (key == "settings.error.shortcut_conflict.title") return "快捷键冲突";
-    if (key == "settings.error.shortcut_conflict.body") return "三个动作不能使用相同快捷键。";
+    if (key == "settings.error.shortcut_conflict.body") return "快捷键不能重复。";
 
     if (key == "language.english") return "English";
     if (key == "language.zh_cn") return "简体中文";
@@ -238,6 +252,7 @@ QString zhTW(const QString &key)
     if (key == "dialog.tooltip.swap") return "切換翻譯方向";
     if (key == "dialog.tooltip.play_audio") return "播放譯文語音";
     if (key == "dialog.tooltip.stop_audio") return "停止語音";
+    if (key == "dialog.tooltip.screenshot") return "截圖翻譯";
     if (key == "dialog.tooltip.pin") return "視窗置頂";
     if (key == "dialog.tooltip.settings") return "開啟設定";
     if (key == "dialog.error.no_selection") return "未取得選取文字。";
@@ -247,11 +262,16 @@ QString zhTW(const QString &key)
     if (key == "dialog.hotkey.fallback.settings") return "設定快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.selection") return "翻譯選取文字快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.speech") return "播放語音快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.fallback.screenshot") return "截圖翻譯快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.failed.swap") return "語言互轉快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.pin") return "置頂快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.settings") return "設定快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.selection") return "翻譯選取文字快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.speech") return "播放語音快捷鍵註冊失敗。";
+    if (key == "dialog.hotkey.failed.screenshot") return "截圖翻譯快捷鍵註冊失敗。";
+    if (key == "dialog.status.ocr") return "正在識別截圖文字...";
+    if (key == "dialog.error.ocr_failed") return "截圖 OCR 失敗。";
+    if (key == "dialog.error.ocr_empty") return "截圖中未識別到文字。";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.group.app") return "應用";
@@ -266,6 +286,7 @@ QString zhTW(const QString &key)
     if (key == "settings.shortcuts.settings") return "開啟設定";
     if (key == "settings.shortcuts.selection") return "翻譯選取文字";
     if (key == "settings.shortcuts.speech") return "播放/暫停語音";
+    if (key == "settings.shortcuts.screenshot") return "截圖翻譯";
     if (key == "settings.service.section.free") return "無需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "啟用";
@@ -331,7 +352,7 @@ QString zhTW(const QString &key)
     if (key == "settings.error.duplicate.title") return "重複";
     if (key == "settings.error.duplicate.body") return "該語言方向已存在。";
     if (key == "settings.error.shortcut_conflict.title") return "快捷鍵衝突";
-    if (key == "settings.error.shortcut_conflict.body") return "三個動作不能使用相同快捷鍵。";
+    if (key == "settings.error.shortcut_conflict.body") return "快捷鍵不能重複。";
 
     if (key == "language.english") return "English";
     if (key == "language.zh_cn") return "简体中文";

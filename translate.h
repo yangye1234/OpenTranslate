@@ -22,6 +22,7 @@ class BaiduTranslatorService;
 class DeepLTranslatorService;
 class DictionaryTranslatorService;
 class OpenAITranslatorService;
+class OcrService;
 class SpeechPlayer;
 class TranslatorService;
 class QHotkey;
@@ -48,6 +49,8 @@ private slots:
     void toggleSpeech();
     void onSpeechPlayingChanged(bool playing);
     void translateSelection();
+    void screenshotTranslate();
+    void onOcrFinished(bool success, const QString &text, const QString &errorMessage);
 private:
     void reloadLanguagePairs();
     bool parseLanguagePair(const QString &pair, QString &from, QString &to) const;
@@ -62,6 +65,7 @@ private:
     void registerGlobalHotkeys(const ShortcutConfig &shortcuts);
     bool hasRegisteredHotkeys() const;
     void requestSelectionText();
+    QStringList ocrLanguageHints() const;
 
     Ui::Translate *ui;
     QPoint m_dragPosition;
@@ -71,12 +75,14 @@ private:
     OpenAITranslatorService *m_openAIService;
     DeepLTranslatorService *m_deepLService;
     DictionaryTranslatorService *m_dictionaryService;
+    OcrService *m_ocrService;
     SpeechPlayer *m_speechPlayer;
     QHotkey *m_swapHotkey;
     QHotkey *m_pinHotkey;
     QHotkey *m_settingsHotkey;
     QHotkey *m_selectionHotkey;
     QHotkey *m_speechHotkey;
+    QHotkey *m_screenshotHotkey;
     bool m_isTranslating;
     QString m_hotkeyStatusMessage;
     TranslationCacheStore m_translationCache;

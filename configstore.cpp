@@ -114,6 +114,11 @@ AppConfig ConfigStore::load()
     if (config.shortcuts.toggleSpeech.trimmed().isEmpty()) {
         config.shortcuts.toggleSpeech = defaultShortcutsForCurrentPlatform().toggleSpeech;
     }
+    config.shortcuts.screenshotTranslate = settings.value("shortcuts/screenshotTranslate",
+                                                          config.shortcuts.screenshotTranslate).toString();
+    if (config.shortcuts.screenshotTranslate.trimmed().isEmpty()) {
+        config.shortcuts.screenshotTranslate = defaultShortcutsForCurrentPlatform().screenshotTranslate;
+    }
 #if defined(Q_OS_MACOS)
     // Migration: previous versions accidentally used Meta+, which maps to Control key on macOS.
     if (config.shortcuts.openSettings == "Meta+,") {
@@ -175,6 +180,7 @@ void ConfigStore::save(const AppConfig &config)
     settings.setValue("shortcuts/settings", config.shortcuts.openSettings);
     settings.setValue("shortcuts/translateSelection", config.shortcuts.translateSelection);
     settings.setValue("shortcuts/toggleSpeech", config.shortcuts.toggleSpeech);
+    settings.setValue("shortcuts/screenshotTranslate", config.shortcuts.screenshotTranslate);
     settings.setValue("languages/pairs", normalizedPairs(config.languagePairs));
     settings.setValue("languages/defaultPair", normalizedPair(config.defaultLanguagePair));
 }
