@@ -136,6 +136,9 @@ void appendCeResult(const QJsonObject &ce, QStringList &lines, QString &phonetic
 
     const QJsonArray trs = word.value("trs").toArray();
     for (const QJsonValue &value : trs) {
+        if (lines.size() >= 3) {
+            break;
+        }
         const QJsonObject item = value.toObject();
         const QString text = item.value("#text").toString(item.value("text").toString()).trimmed();
         const QString tran = item.value("tran").toString().trimmed();
@@ -145,26 +148,6 @@ void appendCeResult(const QJsonObject &ce, QStringList &lines, QString &phonetic
             lines << text;
         } else if (!tran.isEmpty()) {
             lines << tran;
-        }
-    }
-}
-
-void appendWebTranslations(const QJsonObject &webTrans, QStringList &lines)
-{
-    const QJsonArray translations = webTrans.value("web-translation").toArray();
-    for (const QJsonValue &value : translations) {
-        const QJsonObject item = value.toObject();
-        const QString key = item.value("key").toString().trimmed();
-        QStringList trans;
-        const QJsonArray transArray = item.value("trans").toArray();
-        for (const QJsonValue &transValue : transArray) {
-            const QString text = transValue.toObject().value("value").toString().trimmed();
-            if (!text.isEmpty()) {
-                trans << text;
-            }
-        }
-        if (!key.isEmpty() && !trans.isEmpty()) {
-            lines << QString("%1: %2").arg(key, trans.join("; "));
         }
     }
 }
@@ -262,15 +245,14 @@ void DictionaryTranslatorService::onReplyFinished(QNetworkReply *reply)
 
     appendEcResult(root.value("ec").toObject(), lines, phonetic, audioUrl);
     appendCeResult(root.value("ce").toObject(), lines, phonetic);
-    appendWebTranslations(root.value("web_trans").toObject(), lines);
 
     const QString fanyi = root.value("fanyi").toObject().value("tran").toString().trimmed();
-    if (!fanyi.isEmpty() && !lines.contains(fanyi)) {
-        lines.prepend(fanyi);
+    if (lines.isEmpty() && !fanyi.isEmpty()) {
+        lines << fanyi;
     }
 
     if (lines.isEmpty()) {
-        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, audioUrl, "Youdao dictionary returned no result."));
+        emit translationFinished(makeDictionaryResult(false, m_pendingFrom, m_pendingTo, QString(), phonetic, audioUrl, "有道词典未返回可显示结果。"));
         return;
     }
 

@@ -398,7 +398,8 @@ void Translate::onTranslationFinished(const TranslationResult &result)
                                       m_pendingSourceText,
                                       result.translatedText);
         }
-        const QString displayText = result.phoneticText.isEmpty()
+        const bool inlinePhonetic = result.provider != "dictionary" && !result.phoneticText.isEmpty();
+        const QString displayText = !inlinePhonetic
                                         ? result.translatedText
                                         : QString("%1\n%2").arg(result.phoneticText, result.translatedText);
         ui->Translation->setText(displayText);
