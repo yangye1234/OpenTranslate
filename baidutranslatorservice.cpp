@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
+#include <QSet>
 #include <QTimer>
 #include <QUrlQuery>
 
@@ -20,6 +21,44 @@ QString baiduTtsUrl(const QString &text, const QString &language)
     query.addQueryItem("source", "web");
     url.setQuery(query);
     return url.toString();
+}
+
+QString baiduLanguageCode(const QString &language)
+{
+    const QString code = language.trimmed().toLower();
+    if (code.isEmpty()) {
+        return {};
+    }
+    if (code == "auto") {
+        return "auto";
+    }
+    if (code == "zh" || code == "zh-cn" || code == "zh-hans" || code == "wyw") {
+        return code == "wyw" ? "wyw" : "zh";
+    }
+    if (code == "zh-tw" || code == "zh-hant" || code == "cht") {
+        return "cht";
+    }
+    if (code == "ja" || code == "jp" || code.startsWith("ja-")) {
+        return "jp";
+    }
+    if (code == "ko" || code == "kr" || code == "kor" || code.startsWith("ko-")) {
+        return "kor";
+    }
+    if (code == "fr" || code.startsWith("fr-")) {
+        return "fra";
+    }
+    if (code == "es" || code.startsWith("es-")) {
+        return "spa";
+    }
+    if (code == "vi" || code.startsWith("vi-")) {
+        return "vie";
+    }
+
+    static const QSet<QString> supported = {
+        "en", "yue", "th", "ara", "ru", "pt", "de", "it", "el", "nl", "pl", "bul",
+        "est", "dan", "fin", "cs", "rom", "slo", "swe", "hu", "cht", "vie"
+    };
+    return supported.contains(code) ? code : QString();
 }
 
 TranslationResult makeResult(bool success,
@@ -70,8 +109,21 @@ void BaiduTranslatorService::translate(const QString &text, const QString &from,
         return;
     }
 
-    m_pendingFrom = from;
-    m_pendingTo = to;
+    const QString baiduFrom = baiduLanguageCode(from);
+    const QString baiduTo = baiduLanguageCode(to);
+    if (baiduTo.isEmpty() || baiduFrom.isEmpty()) {
+        QTimer::singleShot(0, this, [this, from, to]() {
+            emit translationFinished(makeResult(false,
+                                                from,
+                                                to,
+                                                QString(),
+                                                "百度翻译不支持当前语言参数，请检查语言对。"));
+        });
+        return;
+    }
+
+    m_pendingFrom = baiduFrom;
+    m_pendingTo = baiduTo;
 
     const QString salt = QString::number(QDateTime::currentMSecsSinceEpoch());
     const QString sign = generateSign(m_baiduConfig.appId, text, salt, m_baiduConfig.appKey);
@@ -79,8 +131,8 @@ void BaiduTranslatorService::translate(const QString &text, const QString &from,
     QUrl url("https://fanyi-api.baidu.com/api/trans/vip/translate");
     QUrlQuery query;
     query.addQueryItem("q", text);
-    query.addQueryItem("from", from);
-    query.addQueryItem("to", to);
+    query.addQueryItem("from", baiduFrom);
+    query.addQueryItem("to", baiduTo);
     query.addQueryItem("appid", m_baiduConfig.appId);
     query.addQueryItem("salt", salt);
     query.addQueryItem("sign", sign);
@@ -112,6 +164,14 @@ void BaiduTranslatorService::onReplyFinished(QNetworkReply *reply)
     if (obj.contains("error_code")) {
         const QString errorCode = obj.value("error_code").toString();
         const QString errorMsg = obj.value("error_msg").toString("Unknown error");
+        if (errorCode == "58001") {
+            emit translationFinished(makeResult(false,
+                                                m_pendingFrom,
+                                                m_pendingTo,
+                                                QString(),
+                                                "百度翻译不支持当前目标语言参数，请检查语言对。"));
+            return;
+        }
         emit translationFinished(makeResult(false, m_pendingFrom, m_pendingTo, QString(), QString("Baidu error %1: %2").arg(errorCode, errorMsg)));
         return;
     }
