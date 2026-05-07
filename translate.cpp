@@ -242,11 +242,10 @@ void Translate::reloadLanguagePairs()
     ui->SelectLanguage->clear();
 
     QStringList pairs = m_config.languagePairs;
-    if (!m_config.targetLanguages.isEmpty()) {
-        pairs = m_config.targetLanguages;
-    } else if (pairs.isEmpty()) {
-        pairs << "zh" << "en";
+    if (pairs.isEmpty()) {
+        pairs << "zh <> en";
     }
+    ui->SelectLanguage->addItem(L10n::text(m_config.appLanguage, "dialog.language.auto"));
     ui->SelectLanguage->addItems(pairs);
     for (int i = 0; i < ui->SelectLanguage->count(); ++i) {
         ui->SelectLanguage->setItemData(i, QColor("#FFFFFF"), Qt::ForegroundRole);
@@ -271,14 +270,11 @@ void Translate::triggerTranslate()
     }
 
     m_speechPlayer->stop();
-    QString from = LanguageDetector::detect(sourceText);
-    QString to = currentTargetLanguage();
-
-    if (from == "auto") {
-        from = "auto";
-    }
-    if (to.isEmpty()) {
-        to = LanguageDetector::autoTargetFor(from, m_config.defaultTargetLanguage);
+    QString from;
+    QString to;
+    if (!resolveLanguageDirection(sourceText, from, to)) {
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.invalid_pair"));
+        return;
     }
 
     const QString provider = activeProviderKey();
@@ -403,9 +399,12 @@ bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &t
 {
     QString normalized = pair.trimmed();
     normalized.replace("-->", "->");
+    normalized.replace("<->", "<>");
+    normalized.replace("<=>", "<>");
     normalized.remove(' ');
 
-    const QStringList parts = normalized.split("->", Qt::SkipEmptyParts);
+    QString separator = normalized.contains("<>") ? "<>" : "->";
+    const QStringList parts = normalized.split(separator, Qt::SkipEmptyParts);
     if (parts.size() != 2) {
         return false;
     }
@@ -417,17 +416,16 @@ bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &t
 
 void Translate::swapLanguagePair()
 {
-    const QString source = LanguageDetector::detect(ui->OriginalText->text());
-    const QString target = LanguageDetector::autoTargetFor(source, m_config.defaultTargetLanguage);
-    int index = ui->SelectLanguage->findText(target);
-
+    QString from;
+    QString to;
+    if (!parseLanguagePair(selectedLanguagePair(), from, to)) {
+        return;
+    }
+    const QString reversed = to + " <> " + from;
+    const QString canonical = from < to ? from + " <> " + to : to + " <> " + from;
+    int index = ui->SelectLanguage->findText(canonical);
     if (index >= 0) {
         ui->SelectLanguage->setCurrentIndex(index);
-    } else if (!target.isEmpty()) {
-        m_config.targetLanguages << target;
-        ConfigStore::save(m_config);
-        reloadLanguagePairs();
-        ui->SelectLanguage->setCurrentText(target);
     }
 }
 
@@ -670,15 +668,38 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
     }
 }
 
-QString Translate::currentTargetLanguage() const
+bool Translate::resolveLanguageDirection(const QString &text, QString &from, QString &to) const
 {
-    const QString current = ui->SelectLanguage->currentText().trimmed();
-    QString from;
-    QString to;
-    if (parseLanguagePair(current, from, to)) {
-        return to;
+    QString left;
+    QString right;
+    if (!parseLanguagePair(selectedLanguagePair(), left, right)) {
+        return false;
     }
-    return current.isEmpty() ? m_config.defaultTargetLanguage : current;
+
+    const QString detected = LanguageDetector::detect(text);
+    if (detected == left) {
+        from = left;
+        to = right;
+        return true;
+    }
+    if (detected == right) {
+        from = right;
+        to = left;
+        return true;
+    }
+
+    from = detected == "auto" ? QStringLiteral("auto") : detected;
+    to = right;
+    return true;
+}
+
+QString Translate::selectedLanguagePair() const
+{
+    const int index = ui->SelectLanguage->currentIndex();
+    if (index <= 0) {
+        return m_config.defaultLanguagePair.isEmpty() ? QStringLiteral("zh <> en") : m_config.defaultLanguagePair;
+    }
+    return ui->SelectLanguage->currentText();
 }
 
 void Translate::requestSelectionText()

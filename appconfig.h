@@ -80,8 +80,7 @@ struct AppConfig {
     HistoryConfig history;
     ShortcutConfig shortcuts = defaultShortcutsForCurrentPlatform();
     QStringList languagePairs;
-    QStringList targetLanguages;
-    QString defaultTargetLanguage = "zh";
+    QString defaultLanguagePair = "zh <> en";
     ProviderType activeProvider = ProviderType::Baidu;
     AppLanguage appLanguage = AppLanguage::SimplifiedChinese;
 };

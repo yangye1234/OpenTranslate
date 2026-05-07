@@ -6,6 +6,7 @@ QString en(const QString &key)
     if (key == "dialog.title") return "OpenTranslate";
     if (key == "dialog.original.placeholder") return "Enter source text and press Enter";
     if (key == "dialog.result.placeholder") return "Translation result";
+    if (key == "dialog.language.auto") return "Auto";
     if (key == "dialog.error.invalid_pair") return "Invalid language pair.";
     if (key == "dialog.status.translating") return "Translating...";
     if (key == "dialog.tooltip.swap") return "Swap language direction";
@@ -28,7 +29,7 @@ QString en(const QString &key)
     if (key == "settings.group.shortcuts") return "Shortcuts";
     if (key == "settings.label.app_language") return "App Language";
     if (key == "settings.label.provider") return "Default Provider";
-    if (key == "settings.label.targets") return "Target Languages / Default";
+    if (key == "settings.label.pairs_default") return "Language Pairs / Default";
     if (key == "settings.shortcuts.swap") return "Swap Language";
     if (key == "settings.shortcuts.pin") return "Toggle On Top";
     if (key == "settings.shortcuts.settings") return "Open Settings";
@@ -99,6 +100,7 @@ QString zhCN(const QString &key)
     if (key == "dialog.title") return "开源翻译";
     if (key == "dialog.original.placeholder") return "输入原文后按回车翻译";
     if (key == "dialog.result.placeholder") return "翻译结果";
+    if (key == "dialog.language.auto") return "自动选择";
     if (key == "dialog.error.invalid_pair") return "语言方向格式不正确。";
     if (key == "dialog.status.translating") return "翻译中...";
     if (key == "dialog.tooltip.swap") return "切换翻译方向";
@@ -121,7 +123,7 @@ QString zhCN(const QString &key)
     if (key == "settings.group.shortcuts") return "快捷键";
     if (key == "settings.label.app_language") return "应用语言";
     if (key == "settings.label.provider") return "默认翻译服务";
-    if (key == "settings.label.targets") return "目标语言 / 默认";
+    if (key == "settings.label.pairs_default") return "语言对 / 默认";
     if (key == "settings.shortcuts.swap") return "语言互转";
     if (key == "settings.shortcuts.pin") return "切换置顶";
     if (key == "settings.shortcuts.settings") return "打开设置";
@@ -192,6 +194,7 @@ QString zhTW(const QString &key)
     if (key == "dialog.title") return "開源翻譯";
     if (key == "dialog.original.placeholder") return "輸入原文後按 Enter 翻譯";
     if (key == "dialog.result.placeholder") return "翻譯結果";
+    if (key == "dialog.language.auto") return "自動選擇";
     if (key == "dialog.error.invalid_pair") return "語言方向格式不正確。";
     if (key == "dialog.status.translating") return "翻譯中...";
     if (key == "dialog.tooltip.swap") return "切換翻譯方向";
@@ -214,7 +217,7 @@ QString zhTW(const QString &key)
     if (key == "settings.group.shortcuts") return "快捷鍵";
     if (key == "settings.label.app_language") return "應用語言";
     if (key == "settings.label.provider") return "預設翻譯服務";
-    if (key == "settings.label.targets") return "目標語言 / 預設";
+    if (key == "settings.label.pairs_default") return "語言對 / 預設";
     if (key == "settings.shortcuts.swap") return "語言互轉";
     if (key == "settings.shortcuts.pin") return "切換置頂";
     if (key == "settings.shortcuts.settings") return "開啟設定";

@@ -8,7 +8,37 @@ QString normalizePair(const QString &pair)
     QString normalized = pair.trimmed();
     normalized.replace("-->", "->");
     normalized.remove(' ');
+    normalized.replace("<->", "<>");
+    normalized.replace("<=>", "<>");
     return normalized;
+}
+
+QString makeBidirectionalPair(const QString &left, const QString &right)
+{
+    const QString a = left.trimmed();
+    const QString b = right.trimmed();
+    if (a.isEmpty() || b.isEmpty() || a == b) {
+        return {};
+    }
+    return a < b ? a + " <> " + b : b + " <> " + a;
+}
+
+QString normalizedLanguagePair(const QString &pair)
+{
+    const QString normalized = normalizePair(pair);
+    if (normalized.contains("<>")) {
+        const QStringList parts = normalized.split("<>", Qt::SkipEmptyParts);
+        if (parts.size() == 2) {
+            return makeBidirectionalPair(parts.at(0), parts.at(1));
+        }
+    }
+    if (normalized.contains("->")) {
+        const QStringList parts = normalized.split("->", Qt::SkipEmptyParts);
+        if (parts.size() == 2) {
+            return makeBidirectionalPair(parts.at(0), parts.at(1));
+        }
+    }
+    return {};
 }
 
 ProviderType providerFromInt(int value)
@@ -27,10 +57,6 @@ ProviderType providerFromInt(int value)
     }
 }
 
-QString normalizedLanguageCode(const QString &code)
-{
-    return code.trimmed();
-}
 }
 
 AppConfig ConfigStore::load()
@@ -96,30 +122,16 @@ AppConfig ConfigStore::load()
     }
     config.languagePairs = normalizedPairs(pairs);
     if (config.languagePairs.isEmpty()) {
-        config.languagePairs << "en->zh" << "zh->en";
+        config.languagePairs << "zh <> en";
     }
 
-    QStringList targets = settings.value("languages/targets").toStringList();
-    if (targets.isEmpty()) {
-        for (const QString &pair : config.languagePairs) {
-            const QStringList parts = pair.split("->", Qt::SkipEmptyParts);
-            if (parts.size() == 2) {
-                targets << parts.at(1);
-            }
-        }
+    config.defaultLanguagePair = normalizedPair(
+        settings.value("languages/defaultPair", settings.value("languages/defaultTarget", "zh <> en")).toString());
+    if (config.defaultLanguagePair.isEmpty()) {
+        config.defaultLanguagePair = config.languagePairs.first();
     }
-    config.targetLanguages = normalizedLanguageCodes(targets);
-    if (config.targetLanguages.isEmpty()) {
-        config.targetLanguages << "zh" << "en";
-    }
-
-    config.defaultTargetLanguage = normalizedLanguageCode(
-        settings.value("languages/defaultTarget", config.targetLanguages.first()).toString());
-    if (config.defaultTargetLanguage.isEmpty()) {
-        config.defaultTargetLanguage = config.targetLanguages.first();
-    }
-    if (!config.targetLanguages.contains(config.defaultTargetLanguage)) {
-        config.targetLanguages.prepend(config.defaultTargetLanguage);
+    if (!config.languagePairs.contains(config.defaultLanguagePair)) {
+        config.languagePairs.prepend(config.defaultLanguagePair);
     }
 
     return config;
@@ -157,30 +169,14 @@ void ConfigStore::save(const AppConfig &config)
     settings.setValue("shortcuts/settings", config.shortcuts.openSettings);
     settings.setValue("shortcuts/translateSelection", config.shortcuts.translateSelection);
     settings.setValue("languages/pairs", normalizedPairs(config.languagePairs));
-    settings.setValue("languages/targets", normalizedLanguageCodes(config.targetLanguages));
-    settings.setValue("languages/defaultTarget", normalizedLanguageCode(config.defaultTargetLanguage));
+    settings.setValue("languages/defaultPair", normalizedPair(config.defaultLanguagePair));
 }
 
 QStringList ConfigStore::normalizedPairs(QStringList pairs)
 {
     QStringList out;
     for (const QString &pair : pairs) {
-        const QString normalized = normalizePair(pair);
-        if (normalized.isEmpty() || !normalized.contains("->")) {
-            continue;
-        }
-        if (!out.contains(normalized)) {
-            out << normalized;
-        }
-    }
-    return out;
-}
-
-QStringList ConfigStore::normalizedLanguageCodes(QStringList codes)
-{
-    QStringList out;
-    for (const QString &code : codes) {
-        const QString normalized = normalizedLanguageCode(code);
+        const QString normalized = normalizedPair(pair);
         if (normalized.isEmpty()) {
             continue;
         }
@@ -189,4 +185,9 @@ QStringList ConfigStore::normalizedLanguageCodes(QStringList codes)
         }
     }
     return out;
+}
+
+QString ConfigStore::normalizedPair(const QString &pair)
+{
+    return normalizedLanguagePair(pair);
 }

@@ -39,7 +39,7 @@ private slots:
     void onSaveClicked();
     void onAppLanguageChanged(int index);
     void onAnySettingChanged();
-    void onTargetLanguagesEdited();
+    void onLanguagePairsEdited();
     void onClearCacheClicked();
     void onExportCacheClicked();
     void onImportCacheClicked();
@@ -52,9 +52,9 @@ private:
     void refreshPairList(const QStringList &pairs);
     QStringList currentPairs() const;
     void createExtendedSettingsUi();
-    void refreshTargetLanguages(const QStringList &languages, const QString &defaultLanguage);
-    QStringList currentTargetLanguages() const;
-    void updateDefaultTargetOptions(const QString &selected);
+    void refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair);
+    QStringList currentLanguagePairsFromEdit() const;
+    void updateDefaultPairOptions(const QString &selected);
     void applyLanguage(AppLanguage language);
     void setupLanguageOptions();
     void setDirty(bool dirty);
@@ -69,8 +69,8 @@ private:
     bool m_isLoading;
     QString m_hotkeyStatusMessage;
     QComboBox *m_providerCombo;
-    QLineEdit *m_targetLanguagesEdit;
-    QComboBox *m_defaultTargetCombo;
+    QLineEdit *m_languagePairsEdit;
+    QComboBox *m_defaultPairCombo;
     QKeySequenceEdit *m_selectionShortcutEdit;
     QGroupBox *m_deepLGroup;
     QCheckBox *m_deepLEnabled;

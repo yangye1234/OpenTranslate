@@ -11,7 +11,7 @@ public:
 
 private:
     static QStringList normalizedPairs(QStringList pairs);
-    static QStringList normalizedLanguageCodes(QStringList codes);
+    static QString normalizedPair(const QString &pair);
 };
 
 #endif // CONFIGSTORE_H

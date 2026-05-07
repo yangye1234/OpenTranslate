@@ -28,8 +28,8 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_isDirty(false)
     , m_isLoading(false)
     , m_providerCombo(nullptr)
-    , m_targetLanguagesEdit(nullptr)
-    , m_defaultTargetCombo(nullptr)
+    , m_languagePairsEdit(nullptr)
+    , m_defaultPairCombo(nullptr)
     , m_selectionShortcutEdit(nullptr)
     , m_deepLGroup(nullptr)
     , m_deepLEnabled(nullptr)
@@ -102,7 +102,7 @@ void SettingsWidget::setConfig(const AppConfig &config)
     m_dictionaryAppSecret->setText(config.dictionary.appSecret);
 
     m_providerCombo->setCurrentIndex(static_cast<int>(config.activeProvider));
-    refreshTargetLanguages(config.targetLanguages, config.defaultTargetLanguage);
+    refreshLanguagePairs(config.languagePairs, config.defaultLanguagePair);
     m_cacheEnabled->setChecked(config.cache.enabled);
     m_historyEnabled->setChecked(config.history.enabled);
     m_historyMaxEntries->setText(QString::number(config.history.maxEntries));
@@ -236,11 +236,10 @@ void SettingsWidget::onSaveClicked()
     config.dictionary.appSecret = m_dictionaryAppSecret->text().trimmed();
 
     config.activeProvider = static_cast<ProviderType>(m_providerCombo->currentIndex());
-    config.languagePairs = currentPairs();
-    config.targetLanguages = currentTargetLanguages();
-    config.defaultTargetLanguage = m_defaultTargetCombo->currentText().trimmed();
-    if (config.defaultTargetLanguage.isEmpty()) {
-        config.defaultTargetLanguage = config.targetLanguages.value(0, "zh");
+    config.languagePairs = currentLanguagePairsFromEdit();
+    config.defaultLanguagePair = m_defaultPairCombo->currentText().trimmed();
+    if (config.defaultLanguagePair.isEmpty()) {
+        config.defaultLanguagePair = config.languagePairs.value(0, "zh <> en");
     }
     config.cache.enabled = m_cacheEnabled->isChecked();
     config.history.enabled = m_historyEnabled->isChecked();
@@ -299,9 +298,9 @@ void SettingsWidget::onAnySettingChanged()
     setDirty(true);
 }
 
-void SettingsWidget::onTargetLanguagesEdited()
+void SettingsWidget::onLanguagePairsEdited()
 {
-    updateDefaultTargetOptions(m_defaultTargetCombo->currentText());
+    updateDefaultPairOptions(m_defaultPairCombo->currentText());
     onAnySettingChanged();
 }
 
@@ -402,8 +401,24 @@ QString SettingsWidget::normalizePair(const QString &pair)
 {
     QString normalized = pair.trimmed();
     normalized.replace("-->", "->");
+    normalized.replace("<->", "<>");
+    normalized.replace("<=>", "<>");
     normalized.remove(' ');
-    return normalized;
+    QStringList parts;
+    if (normalized.contains("<>")) {
+        parts = normalized.split("<>", Qt::SkipEmptyParts);
+    } else if (normalized.contains("->")) {
+        parts = normalized.split("->", Qt::SkipEmptyParts);
+    }
+    if (parts.size() != 2) {
+        return {};
+    }
+    const QString left = parts.at(0).trimmed();
+    const QString right = parts.at(1).trimmed();
+    if (left.isEmpty() || right.isEmpty() || left == right) {
+        return {};
+    }
+    return left < right ? left + " <> " + right : right + " <> " + left;
 }
 
 QString SettingsWidget::normalizeLanguageCode(const QString &code)
@@ -451,13 +466,13 @@ void SettingsWidget::createExtendedSettingsUi()
     labelProvider->setText(L10n::text(m_uiLanguage, "settings.label.provider"));
     ui->formLayoutApp->addRow(labelProvider, m_providerCombo);
 
-    m_targetLanguagesEdit = new QLineEdit(this);
-    m_defaultTargetCombo = new QComboBox(this);
+    m_languagePairsEdit = new QLineEdit(this);
+    m_defaultPairCombo = new QComboBox(this);
     auto *targetWrapper = new QWidget(this);
     auto *targetLayout = new QHBoxLayout(targetWrapper);
     targetLayout->setContentsMargins(0, 0, 0, 0);
-    targetLayout->addWidget(m_targetLanguagesEdit, 2);
-    targetLayout->addWidget(m_defaultTargetCombo, 1);
+    targetLayout->addWidget(m_languagePairsEdit, 2);
+    targetLayout->addWidget(m_defaultPairCombo, 1);
     auto *labelTargets = new QLabel(this);
     labelTargets->setObjectName("labelTargets");
     ui->formLayoutApp->addRow(labelTargets, targetWrapper);
@@ -521,7 +536,7 @@ void SettingsWidget::createExtendedSettingsUi()
     dataLayout->addLayout(historyButtons);
     ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->pairGroup), m_dataGroup);
 
-    connect(m_targetLanguagesEdit, &QLineEdit::textChanged, this, &SettingsWidget::onTargetLanguagesEdited);
+    connect(m_languagePairsEdit, &QLineEdit::textChanged, this, &SettingsWidget::onLanguagePairsEdited);
     connect(m_clearCacheButton, &QPushButton::clicked, this, &SettingsWidget::onClearCacheClicked);
     connect(m_exportCacheButton, &QPushButton::clicked, this, &SettingsWidget::onExportCacheClicked);
     connect(m_importCacheButton, &QPushButton::clicked, this, &SettingsWidget::onImportCacheClicked);
@@ -529,48 +544,48 @@ void SettingsWidget::createExtendedSettingsUi()
     connect(m_clearHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onClearHistoryClicked);
 }
 
-void SettingsWidget::refreshTargetLanguages(const QStringList &languages, const QString &defaultLanguage)
+void SettingsWidget::refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair)
 {
     QStringList normalized;
-    for (const QString &language : languages) {
-        const QString code = normalizeLanguageCode(language);
+    for (const QString &pair : pairs) {
+        const QString code = normalizePair(pair);
         if (!code.isEmpty() && !normalized.contains(code)) {
             normalized << code;
         }
     }
     if (normalized.isEmpty()) {
-        normalized << "zh" << "en";
+        normalized << "zh <> en";
     }
-    m_targetLanguagesEdit->setText(normalized.join(", "));
-    updateDefaultTargetOptions(defaultLanguage);
+    m_languagePairsEdit->setText(normalized.join(", "));
+    updateDefaultPairOptions(defaultPair);
 }
 
-QStringList SettingsWidget::currentTargetLanguages() const
+QStringList SettingsWidget::currentLanguagePairsFromEdit() const
 {
     QStringList out;
-    const QStringList parts = m_targetLanguagesEdit->text().split(',', Qt::SkipEmptyParts);
+    const QStringList parts = m_languagePairsEdit->text().split(',', Qt::SkipEmptyParts);
     for (const QString &part : parts) {
-        const QString code = normalizeLanguageCode(part);
+        const QString code = normalizePair(part);
         if (!code.isEmpty() && !out.contains(code)) {
             out << code;
         }
     }
     if (out.isEmpty()) {
-        out << "zh" << "en";
+        out << "zh <> en";
     }
     return out;
 }
 
-void SettingsWidget::updateDefaultTargetOptions(const QString &selected)
+void SettingsWidget::updateDefaultPairOptions(const QString &selected)
 {
-    const QString current = selected.trimmed().isEmpty() ? m_defaultTargetCombo->currentText() : selected.trimmed();
-    m_defaultTargetCombo->clear();
-    m_defaultTargetCombo->addItems(currentTargetLanguages());
-    int index = m_defaultTargetCombo->findText(current);
+    const QString current = selected.trimmed().isEmpty() ? m_defaultPairCombo->currentText() : normalizePair(selected);
+    m_defaultPairCombo->clear();
+    m_defaultPairCombo->addItems(currentLanguagePairsFromEdit());
+    int index = m_defaultPairCombo->findText(current);
     if (index < 0) {
         index = 0;
     }
-    m_defaultTargetCombo->setCurrentIndex(index);
+    m_defaultPairCombo->setCurrentIndex(index);
 }
 
 void SettingsWidget::applyLanguage(AppLanguage language)
@@ -582,7 +597,7 @@ void SettingsWidget::applyLanguage(AppLanguage language)
         label->setText(L10n::text(language, "settings.label.provider"));
     }
     if (auto *label = findChild<QLabel *>("labelTargets")) {
-        label->setText(L10n::text(language, "settings.label.targets"));
+        label->setText(L10n::text(language, "settings.label.pairs_default"));
     }
 
     ui->shortcutsGroup->setTitle(L10n::text(language, "settings.group.shortcuts"));
@@ -666,7 +681,7 @@ void SettingsWidget::setupDirtyTracking()
     connect(ui->genericPrompt, &QPlainTextEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
 
     connect(m_providerCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
-    connect(m_defaultTargetCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
+    connect(m_defaultPairCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLAuthKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLBaseUrl, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
