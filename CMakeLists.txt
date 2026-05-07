@@ -7,9 +7,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
 endif()
 
 project(OpenTranslate VERSION 0.1 LANGUAGES CXX)
-if(APPLE)
-    enable_language(OBJCXX)
-endif()
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -120,7 +117,10 @@ endif()
 
 if(APPLE)
     target_sources(OpenTranslate PRIVATE macvisionocrservice.mm)
-    set_source_files_properties(macvisionocrservice.mm PROPERTIES LANGUAGE OBJCXX)
+    set_source_files_properties(macvisionocrservice.mm PROPERTIES
+        LANGUAGE CXX
+        COMPILE_FLAGS "-x objective-c++"
+    )
     if(EXISTS "${APP_ICON_ICNS}")
         set_source_files_properties("${APP_ICON_ICNS}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
         target_sources(OpenTranslate PRIVATE "${APP_ICON_ICNS}")
