@@ -1,5 +1,13 @@
 #include "ocrservice.h"
 
+OcrService::OcrService(QObject *parent)
+    : QObject(parent)
+{
+}
+
+OcrService::~OcrService() = default;
+
+#if !defined(Q_OS_MACOS)
 namespace {
 class UnsupportedOcrService : public OcrService
 {
@@ -22,16 +30,10 @@ public:
 };
 }
 
-OcrService::OcrService(QObject *parent)
-    : QObject(parent)
-{
-}
-
-OcrService::~OcrService() = default;
-
 OcrService *OcrService::create(QObject *parent)
 {
     return new UnsupportedOcrService(parent);
 }
 
 #include "ocrservice.moc"
+#endif

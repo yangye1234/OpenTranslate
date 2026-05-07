@@ -6,6 +6,10 @@
 #include <QPainter>
 #include <QScreen>
 
+#if defined(Q_OS_MACOS)
+#include <ApplicationServices/ApplicationServices.h>
+#endif
+
 ScreenshotOverlay::ScreenshotOverlay(QWidget *parent)
     : QWidget(parent)
     , m_screen(nullptr)
@@ -19,6 +23,14 @@ ScreenshotOverlay::ScreenshotOverlay(QWidget *parent)
 
 void ScreenshotOverlay::begin()
 {
+#if defined(Q_OS_MACOS)
+    if (!CGPreflightScreenCaptureAccess()) {
+        emit captureFailed(QStringLiteral("Grant Screen Recording permission to let OpenTranslate capture screenshots."));
+        deleteLater();
+        return;
+    }
+#endif
+
     m_screen = QGuiApplication::screenAt(QCursor::pos());
     if (!m_screen) {
         m_screen = QGuiApplication::primaryScreen();

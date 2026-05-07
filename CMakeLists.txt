@@ -7,6 +7,9 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
 endif()
 
 project(OpenTranslate VERSION 0.1 LANGUAGES CXX)
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -116,6 +119,8 @@ if(WIN32)
 endif()
 
 if(APPLE)
+    target_sources(OpenTranslate PRIVATE macvisionocrservice.mm)
+    set_source_files_properties(macvisionocrservice.mm PROPERTIES LANGUAGE OBJCXX)
     if(EXISTS "${APP_ICON_ICNS}")
         set_source_files_properties("${APP_ICON_ICNS}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
         target_sources(OpenTranslate PRIVATE "${APP_ICON_ICNS}")
@@ -123,7 +128,13 @@ if(APPLE)
     else()
         message(WARNING "macOS icon not found: ${APP_ICON_ICNS}. Run scripts/generate_app_icons.sh first.")
     endif()
-    target_link_libraries(OpenTranslate PRIVATE "-framework ApplicationServices")
+    target_link_libraries(OpenTranslate PRIVATE
+        "-framework ApplicationServices"
+        "-framework AppKit"
+        "-framework CoreGraphics"
+        "-framework Foundation"
+        "-framework Vision"
+    )
 endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
