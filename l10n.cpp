@@ -31,7 +31,7 @@ QString en(const QString &key)
     if (key == "settings.group.services") return "Translation Services";
     if (key == "settings.label.app_language") return "App Language";
     if (key == "settings.label.provider") return "Default Provider";
-    if (key == "settings.label.pairs_default") return "Language Pairs / Default";
+    if (key == "settings.label.pairs_default") return "Default Language Pair";
     if (key == "settings.shortcuts.swap") return "Swap Language";
     if (key == "settings.shortcuts.pin") return "Toggle On Top";
     if (key == "settings.shortcuts.settings") return "Open Settings";
@@ -39,6 +39,7 @@ QString en(const QString &key)
     if (key == "settings.service.section.free") return "No API Key";
     if (key == "settings.service.section.api_key") return "Requires API Key";
     if (key == "settings.service.enabled") return "Enabled";
+    if (key == "settings.service.configure") return "Settings";
     if (key == "settings.service.baidu") return "Baidu Translate";
     if (key == "settings.service.baidu.desc") return "Baidu official API translator.";
     if (key == "settings.service.openai") return "OpenAI-compatible";
@@ -61,6 +62,7 @@ QString en(const QString &key)
     if (key == "settings.deepl.enabled") return "Enable DeepL";
     if (key == "settings.group.dictionary") return "Dictionary";
     if (key == "settings.dictionary.enabled") return "Enable dictionary provider";
+    if (key == "settings.dictionary.no_api") return "Youdao dictionary does not require an API key.";
     if (key == "settings.group.data") return "Cache and History";
     if (key == "settings.cache.enabled") return "Enable translation cache";
     if (key == "settings.cache.clear") return "Clear Cache";
@@ -95,7 +97,7 @@ QString en(const QString &key)
     if (key == "settings.saved") return "Saved";
 
     if (key == "settings.error.invalid_pair.title") return "Invalid language pair";
-    if (key == "settings.error.invalid_pair.body") return "Use format like en->zh.";
+    if (key == "settings.error.invalid_pair.body") return "Use format like zh <> en or en->zh.";
     if (key == "settings.error.duplicate.title") return "Duplicate";
     if (key == "settings.error.duplicate.body") return "This language pair already exists.";
     if (key == "settings.error.shortcut_conflict.title") return "Shortcut conflict";
@@ -138,7 +140,7 @@ QString zhCN(const QString &key)
     if (key == "settings.group.services") return "翻译服务";
     if (key == "settings.label.app_language") return "应用语言";
     if (key == "settings.label.provider") return "默认翻译服务";
-    if (key == "settings.label.pairs_default") return "语言对 / 默认";
+    if (key == "settings.label.pairs_default") return "默认语言对";
     if (key == "settings.shortcuts.swap") return "语言互转";
     if (key == "settings.shortcuts.pin") return "切换置顶";
     if (key == "settings.shortcuts.settings") return "打开设置";
@@ -146,6 +148,7 @@ QString zhCN(const QString &key)
     if (key == "settings.service.section.free") return "无需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "启用";
+    if (key == "settings.service.configure") return "设置";
     if (key == "settings.service.baidu") return "百度翻译";
     if (key == "settings.service.baidu.desc") return "百度官方 API 翻译服务。";
     if (key == "settings.service.openai") return "OpenAI 兼容翻译";
@@ -168,6 +171,7 @@ QString zhCN(const QString &key)
     if (key == "settings.deepl.enabled") return "启用 DeepL";
     if (key == "settings.group.dictionary") return "词典";
     if (key == "settings.dictionary.enabled") return "启用词典服务";
+    if (key == "settings.dictionary.no_api") return "有道词典无需 API Key。";
     if (key == "settings.group.data") return "缓存与历史";
     if (key == "settings.cache.enabled") return "启用翻译缓存";
     if (key == "settings.cache.clear") return "清理缓存";
@@ -202,7 +206,7 @@ QString zhCN(const QString &key)
     if (key == "settings.saved") return "已保存";
 
     if (key == "settings.error.invalid_pair.title") return "语言方向格式错误";
-    if (key == "settings.error.invalid_pair.body") return "请使用类似 en->zh 的格式。";
+    if (key == "settings.error.invalid_pair.body") return "请使用类似 zh <> en 或 en->zh 的格式。";
     if (key == "settings.error.duplicate.title") return "重复";
     if (key == "settings.error.duplicate.body") return "该语言方向已存在。";
     if (key == "settings.error.shortcut_conflict.title") return "快捷键冲突";
@@ -245,7 +249,7 @@ QString zhTW(const QString &key)
     if (key == "settings.group.services") return "翻譯服務";
     if (key == "settings.label.app_language") return "應用語言";
     if (key == "settings.label.provider") return "預設翻譯服務";
-    if (key == "settings.label.pairs_default") return "語言對 / 預設";
+    if (key == "settings.label.pairs_default") return "預設語言對";
     if (key == "settings.shortcuts.swap") return "語言互轉";
     if (key == "settings.shortcuts.pin") return "切換置頂";
     if (key == "settings.shortcuts.settings") return "開啟設定";
@@ -253,6 +257,7 @@ QString zhTW(const QString &key)
     if (key == "settings.service.section.free") return "無需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "啟用";
+    if (key == "settings.service.configure") return "設定";
     if (key == "settings.service.baidu") return "百度翻譯";
     if (key == "settings.service.baidu.desc") return "百度官方 API 翻譯服務。";
     if (key == "settings.service.openai") return "OpenAI 相容翻譯";
@@ -275,6 +280,7 @@ QString zhTW(const QString &key)
     if (key == "settings.deepl.enabled") return "啟用 DeepL";
     if (key == "settings.group.dictionary") return "詞典";
     if (key == "settings.dictionary.enabled") return "啟用詞典服務";
+    if (key == "settings.dictionary.no_api") return "有道詞典無需 API Key。";
     if (key == "settings.group.data") return "快取與歷史";
     if (key == "settings.cache.enabled") return "啟用翻譯快取";
     if (key == "settings.cache.clear") return "清理快取";
@@ -309,7 +315,7 @@ QString zhTW(const QString &key)
     if (key == "settings.saved") return "已保存";
 
     if (key == "settings.error.invalid_pair.title") return "語言方向格式錯誤";
-    if (key == "settings.error.invalid_pair.body") return "請使用類似 en->zh 的格式。";
+    if (key == "settings.error.invalid_pair.body") return "請使用類似 zh <> en 或 en->zh 的格式。";
     if (key == "settings.error.duplicate.title") return "重複";
     if (key == "settings.error.duplicate.body") return "該語言方向已存在。";
     if (key == "settings.error.shortcut_conflict.title") return "快捷鍵衝突";

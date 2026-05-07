@@ -22,6 +22,7 @@
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSet>
+#include <QToolButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
@@ -32,7 +33,6 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_isDirty(false)
     , m_isLoading(false)
     , m_providerCombo(nullptr)
-    , m_languagePairsEdit(nullptr)
     , m_defaultPairCombo(nullptr)
     , m_selectionShortcutEdit(nullptr)
     , m_servicesGroup(nullptr)
@@ -43,8 +43,6 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_deepLBaseUrl(nullptr)
     , m_dictionaryGroup(nullptr)
     , m_dictionaryEnabled(nullptr)
-    , m_dictionaryAppKey(nullptr)
-    , m_dictionaryAppSecret(nullptr)
     , m_dataGroup(nullptr)
     , m_cacheEnabled(nullptr)
     , m_historyEnabled(nullptr)
@@ -106,8 +104,6 @@ void SettingsWidget::setConfig(const AppConfig &config)
     m_deepLBaseUrl->setText(config.deepL.baseUrl);
 
     m_dictionaryEnabled->setChecked(config.dictionary.enabled);
-    m_dictionaryAppKey->setText(config.dictionary.appKey);
-    m_dictionaryAppSecret->setText(config.dictionary.appSecret);
 
     m_providerCombo->setCurrentIndex(static_cast<int>(config.activeProvider));
     if (auto *check = serviceEnabledCheck(ProviderType::Baidu)) {
@@ -156,12 +152,11 @@ void SettingsWidget::setConfig(const AppConfig &config)
                                                                       QKeySequence::PortableText));
 
     applyLanguage(m_uiLanguage);
-    refreshPairList(config.languagePairs);
     ui->pairEdit->clear();
 
     m_isLoading = false;
     setDirty(false);
-    ui->baiduAppId->setFocus(Qt::OtherFocusReason);
+    m_defaultPairCombo->setFocus(Qt::OtherFocusReason);
 }
 
 void SettingsWidget::setHotkeyStatusMessage(const QString &message)
@@ -174,7 +169,7 @@ void SettingsWidget::setHotkeyStatusMessage(const QString &message)
 void SettingsWidget::onAddPairClicked()
 {
     const QString pair = normalizePair(ui->pairEdit->text());
-    if (pair.isEmpty() || !pair.contains("->")) {
+    if (pair.isEmpty()) {
         QMessageBox::warning(this,
                              L10n::text(m_uiLanguage, "settings.error.invalid_pair.title"),
                              L10n::text(m_uiLanguage, "settings.error.invalid_pair.body"));
@@ -192,6 +187,7 @@ void SettingsWidget::onAddPairClicked()
 
     ui->pairList->addItem(pair);
     ui->pairEdit->clear();
+    updateDefaultPairOptions(m_defaultPairCombo->currentText());
     setDirty(true);
 }
 
@@ -199,9 +195,9 @@ void SettingsWidget::onRemovePairClicked()
 {
     delete ui->pairList->takeItem(ui->pairList->currentRow());
     if (ui->pairList->count() == 0) {
-        ui->pairList->addItem("en->zh");
-        ui->pairList->addItem("zh->en");
+        ui->pairList->addItem("zh <> en");
     }
+    updateDefaultPairOptions(m_defaultPairCombo->currentText());
     setDirty(true);
 }
 
@@ -214,7 +210,7 @@ void SettingsWidget::onLanguagePairEdited()
     }
 
     const QString pair = normalizePair(ui->pairEdit->text());
-    if (pair.isEmpty() || !pair.contains("->")) {
+    if (pair.isEmpty()) {
         QMessageBox::warning(this,
                              L10n::text(m_uiLanguage, "settings.error.invalid_pair.title"),
                              L10n::text(m_uiLanguage, "settings.error.invalid_pair.body"));
@@ -232,6 +228,7 @@ void SettingsWidget::onLanguagePairEdited()
 
     item->setText(pair);
     ui->pairEdit->clear();
+    updateDefaultPairOptions(m_defaultPairCombo->currentText());
     setDirty(true);
 }
 
@@ -253,12 +250,12 @@ void SettingsWidget::onSaveClicked()
     config.deepL.baseUrl = m_deepLBaseUrl->text().trimmed();
 
     config.dictionary.enabled = serviceEnabledCheck(ProviderType::Dictionary)->isChecked();
-    config.dictionary.appKey = m_dictionaryAppKey->text().trimmed();
-    config.dictionary.appSecret = m_dictionaryAppSecret->text().trimmed();
+    config.dictionary.appKey.clear();
+    config.dictionary.appSecret.clear();
 
     const int activeService = m_serviceButtons->checkedId();
     config.activeProvider = activeService >= 0 ? static_cast<ProviderType>(activeService) : ProviderType::Baidu;
-    config.languagePairs = currentLanguagePairsFromEdit();
+    config.languagePairs = currentPairs();
     config.defaultLanguagePair = m_defaultPairCombo->currentText().trimmed();
     if (config.defaultLanguagePair.isEmpty()) {
         config.defaultLanguagePair = config.languagePairs.value(0, "zh <> en");
@@ -318,12 +315,6 @@ void SettingsWidget::onAnySettingChanged()
         return;
     }
     setDirty(true);
-}
-
-void SettingsWidget::onLanguagePairsEdited()
-{
-    updateDefaultPairOptions(m_defaultPairCombo->currentText());
-    onAnySettingChanged();
 }
 
 void SettingsWidget::onClearCacheClicked()
@@ -454,12 +445,12 @@ void SettingsWidget::refreshPairList(const QStringList &pairs)
     QStringList normalized;
     for (const QString &pair : pairs) {
         const QString fixed = normalizePair(pair);
-        if (!fixed.isEmpty() && fixed.contains("->") && !normalized.contains(fixed)) {
+        if (!fixed.isEmpty() && !normalized.contains(fixed)) {
             normalized << fixed;
         }
     }
     if (normalized.isEmpty()) {
-        normalized << "en->zh" << "zh->en";
+        normalized << "zh <> en";
     }
     ui->pairList->addItems(normalized);
 }
@@ -469,12 +460,12 @@ QStringList SettingsWidget::currentPairs() const
     QStringList pairs;
     for (int i = 0; i < ui->pairList->count(); ++i) {
         const QString pair = normalizePair(ui->pairList->item(i)->text());
-        if (!pair.isEmpty() && pair.contains("->") && !pairs.contains(pair)) {
+        if (!pair.isEmpty() && !pairs.contains(pair)) {
             pairs << pair;
         }
     }
     if (pairs.isEmpty()) {
-        pairs << "en->zh" << "zh->en";
+        pairs << "zh <> en";
     }
     return pairs;
 }
@@ -492,6 +483,36 @@ void SettingsWidget::createExtendedSettingsUi()
     m_serviceButtons = new QButtonGroup(m_servicesGroup);
     m_serviceButtons->setExclusive(true);
     m_serviceEnabledChecks.resize(4);
+    m_serviceDetailWidgets.resize(4);
+
+    const int serviceIndex = m_contentLayout->indexOf(ui->baiduGroup);
+    m_contentLayout->insertWidget(serviceIndex < 0 ? 0 : serviceIndex, m_servicesGroup);
+
+    m_contentLayout->removeWidget(ui->baiduGroup);
+    m_contentLayout->removeWidget(ui->genericGroup);
+    ui->baiduEnabled->hide();
+    ui->genericEnabled->hide();
+
+    m_deepLGroup = new QGroupBox(this);
+    auto *deepLLayout = new QFormLayout(m_deepLGroup);
+    m_deepLEnabled = new QCheckBox(m_deepLGroup);
+    m_deepLEnabled->hide();
+    m_deepLAuthKey = new QLineEdit(m_deepLGroup);
+    m_deepLAuthKey->setEchoMode(QLineEdit::Password);
+    m_deepLBaseUrl = new QLineEdit(m_deepLGroup);
+    deepLLayout->addRow(m_deepLEnabled);
+    deepLLayout->addRow(new QLabel("Auth Key", m_deepLGroup), m_deepLAuthKey);
+    deepLLayout->addRow(new QLabel("Base URL", m_deepLGroup), m_deepLBaseUrl);
+
+    m_dictionaryGroup = new QGroupBox(this);
+    auto *dictionaryLayout = new QVBoxLayout(m_dictionaryGroup);
+    m_dictionaryEnabled = new QCheckBox(m_dictionaryGroup);
+    m_dictionaryEnabled->hide();
+    auto *dictionaryNote = new QLabel(m_dictionaryGroup);
+    dictionaryNote->setObjectName("labelDictionaryNoApi");
+    dictionaryNote->setWordWrap(true);
+    dictionaryLayout->addWidget(m_dictionaryEnabled);
+    dictionaryLayout->addWidget(dictionaryNote);
 
     auto addSectionLabel = [servicesLayout, this](const QString &objectName, const QString &text) {
         auto *label = new QLabel(text, m_servicesGroup);
@@ -502,25 +523,27 @@ void SettingsWidget::createExtendedSettingsUi()
 
     auto addServiceRow = [this, servicesLayout](ProviderType provider,
                                                 const QString &name,
-                                                const QString &description) {
-        auto *row = new QFrame(m_servicesGroup);
-        row->setFrameShape(QFrame::StyledPanel);
-        row->setObjectName(QString("serviceRow%1").arg(static_cast<int>(provider)));
-        row->setStyleSheet(
-            "QFrame { border: 1px solid palette(midlight); border-radius: 8px; }"
-            "QFrame QLabel { border: none; }"
-            "QFrame QRadioButton, QFrame QCheckBox { border: none; }");
+                                                const QString &description,
+                                                QWidget *detailWidget) {
+        auto *container = new QWidget(m_servicesGroup);
+        auto *containerLayout = new QVBoxLayout(container);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->setSpacing(6);
 
-        auto *rowLayout = new QHBoxLayout(row);
+        auto *header = new QFrame(container);
+        header->setFrameShape(QFrame::StyledPanel);
+        header->setObjectName(QString("serviceHeader%1").arg(static_cast<int>(provider)));
+
+        auto *rowLayout = new QHBoxLayout(header);
         rowLayout->setContentsMargins(12, 10, 12, 10);
         rowLayout->setSpacing(10);
 
-        auto *radio = new QRadioButton(name, row);
+        auto *radio = new QRadioButton(name, header);
         radio->setObjectName(QString("serviceRadio%1").arg(static_cast<int>(provider)));
         radio->setToolTip(description);
         m_serviceButtons->addButton(radio, static_cast<int>(provider));
 
-        auto *detail = new QLabel(description, row);
+        auto *detail = new QLabel(description, header);
         detail->setObjectName(QString("serviceDescription%1").arg(static_cast<int>(provider)));
         detail->setWordWrap(true);
         detail->setStyleSheet("color: palette(mid);");
@@ -531,13 +554,28 @@ void SettingsWidget::createExtendedSettingsUi()
         textLayout->addWidget(radio);
         textLayout->addWidget(detail);
 
-        auto *enabled = new QCheckBox(L10n::text(m_uiLanguage, "settings.service.enabled"), row);
+        auto *enabled = new QCheckBox(L10n::text(m_uiLanguage, "settings.service.enabled"), header);
         enabled->setObjectName(QString("serviceEnabled%1").arg(static_cast<int>(provider)));
         m_serviceEnabledChecks[static_cast<int>(provider)] = enabled;
 
+        auto *configureButton = new QToolButton(header);
+        configureButton->setObjectName(QString("serviceConfigure%1").arg(static_cast<int>(provider)));
+        configureButton->setText(L10n::text(m_uiLanguage, "settings.service.configure"));
+        configureButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+
         rowLayout->addLayout(textLayout, 1);
         rowLayout->addWidget(enabled);
-        servicesLayout->addWidget(row);
+        rowLayout->addWidget(configureButton);
+        containerLayout->addWidget(header);
+
+        auto *detailContainer = new QWidget(container);
+        auto *detailLayout = new QVBoxLayout(detailContainer);
+        detailLayout->setContentsMargins(18, 0, 18, 8);
+        detailLayout->addWidget(detailWidget);
+        detailContainer->setVisible(false);
+        m_serviceDetailWidgets[static_cast<int>(provider)] = detailContainer;
+        containerLayout->addWidget(detailContainer);
+        servicesLayout->addWidget(container);
 
         connect(radio, &QRadioButton::clicked, this, [this, provider]() {
             if (auto *check = serviceEnabledCheck(provider)) {
@@ -559,66 +597,39 @@ void SettingsWidget::createExtendedSettingsUi()
             }
             onAnySettingChanged();
         });
+        connect(configureButton, &QToolButton::clicked, this, [this, provider]() {
+            toggleServiceDetails(provider);
+        });
     };
 
     addSectionLabel("labelServiceSectionFree", L10n::text(m_uiLanguage, "settings.service.section.free"));
     addServiceRow(ProviderType::Dictionary,
                   L10n::text(m_uiLanguage, "settings.service.dictionary"),
-                  L10n::text(m_uiLanguage, "settings.service.dictionary.desc"));
+                  L10n::text(m_uiLanguage, "settings.service.dictionary.desc"),
+                  m_dictionaryGroup);
     addSectionLabel("labelServiceSectionApiKey", L10n::text(m_uiLanguage, "settings.service.section.api_key"));
     addServiceRow(ProviderType::Baidu,
                   L10n::text(m_uiLanguage, "settings.service.baidu"),
-                  L10n::text(m_uiLanguage, "settings.service.baidu.desc"));
+                  L10n::text(m_uiLanguage, "settings.service.baidu.desc"),
+                  ui->baiduGroup);
     addServiceRow(ProviderType::OpenAICompatible,
                   L10n::text(m_uiLanguage, "settings.service.openai"),
-                  L10n::text(m_uiLanguage, "settings.service.openai.desc"));
+                  L10n::text(m_uiLanguage, "settings.service.openai.desc"),
+                  ui->genericGroup);
     addServiceRow(ProviderType::DeepL,
                   L10n::text(m_uiLanguage, "settings.service.deepl"),
-                  L10n::text(m_uiLanguage, "settings.service.deepl.desc"));
-    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->baiduGroup), m_servicesGroup);
+                  L10n::text(m_uiLanguage, "settings.service.deepl.desc"),
+                  m_deepLGroup);
 
-    m_languagePairsEdit = new QLineEdit(this);
     m_defaultPairCombo = new QComboBox(this);
-    auto *targetWrapper = new QWidget(this);
-    auto *targetLayout = new QHBoxLayout(targetWrapper);
-    targetLayout->setContentsMargins(0, 0, 0, 0);
-    targetLayout->addWidget(m_languagePairsEdit, 2);
-    targetLayout->addWidget(m_defaultPairCombo, 1);
     auto *labelTargets = new QLabel(this);
     labelTargets->setObjectName("labelTargets");
-    ui->formLayoutApp->addRow(labelTargets, targetWrapper);
+    ui->formLayoutApp->addRow(labelTargets, m_defaultPairCombo);
 
     auto *labelSelectionShortcut = new QLabel(this);
     labelSelectionShortcut->setObjectName("labelSelectionShortcut");
     m_selectionShortcutEdit = new QKeySequenceEdit(this);
     ui->formLayoutShortcuts->insertRow(3, labelSelectionShortcut, m_selectionShortcutEdit);
-
-    ui->baiduEnabled->hide();
-    ui->genericEnabled->hide();
-
-    m_deepLGroup = new QGroupBox(this);
-    auto *deepLLayout = new QFormLayout(m_deepLGroup);
-    m_deepLEnabled = new QCheckBox(m_deepLGroup);
-    m_deepLEnabled->hide();
-    m_deepLAuthKey = new QLineEdit(m_deepLGroup);
-    m_deepLAuthKey->setEchoMode(QLineEdit::Password);
-    m_deepLBaseUrl = new QLineEdit(m_deepLGroup);
-    deepLLayout->addRow(m_deepLEnabled);
-    deepLLayout->addRow(new QLabel("Auth Key", m_deepLGroup), m_deepLAuthKey);
-    deepLLayout->addRow(new QLabel("Base URL", m_deepLGroup), m_deepLBaseUrl);
-    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_deepLGroup);
-
-    m_dictionaryGroup = new QGroupBox(this);
-    auto *dictionaryLayout = new QFormLayout(m_dictionaryGroup);
-    m_dictionaryEnabled = new QCheckBox(m_dictionaryGroup);
-    m_dictionaryEnabled->hide();
-    m_dictionaryAppKey = new QLineEdit(m_dictionaryGroup);
-    m_dictionaryAppSecret = new QLineEdit(m_dictionaryGroup);
-    m_dictionaryAppSecret->setEchoMode(QLineEdit::Password);
-    dictionaryLayout->addRow(m_dictionaryEnabled);
-    dictionaryLayout->addRow(new QLabel("App Key", m_dictionaryGroup), m_dictionaryAppKey);
-    dictionaryLayout->addRow(new QLabel("App Secret", m_dictionaryGroup), m_dictionaryAppSecret);
-    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_dictionaryGroup);
 
     m_dataGroup = new QGroupBox(this);
     auto *dataLayout = new QVBoxLayout(m_dataGroup);
@@ -652,7 +663,6 @@ void SettingsWidget::createExtendedSettingsUi()
     dataLayout->addLayout(historyButtons);
     m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_dataGroup);
 
-    connect(m_languagePairsEdit, &QLineEdit::textChanged, this, &SettingsWidget::onLanguagePairsEdited);
     connect(m_clearCacheButton, &QPushButton::clicked, this, &SettingsWidget::onClearCacheClicked);
     connect(m_exportCacheButton, &QPushButton::clicked, this, &SettingsWidget::onExportCacheClicked);
     connect(m_importCacheButton, &QPushButton::clicked, this, &SettingsWidget::onImportCacheClicked);
@@ -703,31 +713,15 @@ void SettingsWidget::refreshLanguagePairs(const QStringList &pairs, const QStrin
     if (normalized.isEmpty()) {
         normalized << "zh <> en";
     }
-    m_languagePairsEdit->setText(normalized.join(", "));
+    refreshPairList(normalized);
     updateDefaultPairOptions(defaultPair);
-}
-
-QStringList SettingsWidget::currentLanguagePairsFromEdit() const
-{
-    QStringList out;
-    const QStringList parts = m_languagePairsEdit->text().split(',', Qt::SkipEmptyParts);
-    for (const QString &part : parts) {
-        const QString code = normalizePair(part);
-        if (!code.isEmpty() && !out.contains(code)) {
-            out << code;
-        }
-    }
-    if (out.isEmpty()) {
-        out << "zh <> en";
-    }
-    return out;
 }
 
 void SettingsWidget::updateDefaultPairOptions(const QString &selected)
 {
     const QString current = selected.trimmed().isEmpty() ? m_defaultPairCombo->currentText() : normalizePair(selected);
     m_defaultPairCombo->clear();
-    m_defaultPairCombo->addItems(currentLanguagePairsFromEdit());
+    m_defaultPairCombo->addItems(currentPairs());
     int index = m_defaultPairCombo->findText(current);
     if (index < 0) {
         index = 0;
@@ -766,6 +760,9 @@ void SettingsWidget::applyLanguage(AppLanguage language)
         if (auto *check = serviceEnabledCheck(provider)) {
             check->setText(L10n::text(language, "settings.service.enabled"));
         }
+        if (auto *button = findChild<QToolButton *>(QString("serviceConfigure%1").arg(id))) {
+            button->setText(L10n::text(language, "settings.service.configure"));
+        }
     };
     setServiceText(ProviderType::Dictionary, "settings.service.dictionary", "settings.service.dictionary.desc");
     setServiceText(ProviderType::Baidu, "settings.service.baidu", "settings.service.baidu.desc");
@@ -799,6 +796,9 @@ void SettingsWidget::applyLanguage(AppLanguage language)
 
     m_dictionaryGroup->setTitle(L10n::text(language, "settings.group.dictionary"));
     m_dictionaryEnabled->setText(L10n::text(language, "settings.dictionary.enabled"));
+    if (auto *label = findChild<QLabel *>("labelDictionaryNoApi")) {
+        label->setText(L10n::text(language, "settings.dictionary.no_api"));
+    }
 
     m_dataGroup->setTitle(L10n::text(language, "settings.group.data"));
     m_cacheEnabled->setText(L10n::text(language, "settings.cache.enabled"));
@@ -858,8 +858,6 @@ void SettingsWidget::setupDirtyTracking()
     connect(m_deepLAuthKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLBaseUrl, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(m_dictionaryEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
-    connect(m_dictionaryAppKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
-    connect(m_dictionaryAppSecret, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(m_cacheEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
     connect(m_historyEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
     connect(m_historyMaxEntries, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
@@ -894,15 +892,35 @@ void SettingsWidget::updateServiceSelectionUi(ProviderType provider)
     }
 
     for (int id = 0; id < m_serviceEnabledChecks.size(); ++id) {
-        if (auto *row = findChild<QFrame *>(QString("serviceRow%1").arg(id))) {
+        if (auto *row = findChild<QFrame *>(QString("serviceHeader%1").arg(id))) {
             const bool active = id == static_cast<int>(provider);
             row->setStyleSheet(active
                                    ? "QFrame { border: 1px solid #0A84FF; border-radius: 8px; background: #0A84FF; }"
                                      "QFrame QLabel, QFrame QRadioButton, QFrame QCheckBox { border: none; color: white; }"
+                                     "QFrame QToolButton { color: white; }"
                                    : "QFrame { border: 1px solid palette(midlight); border-radius: 8px; }"
                                      "QFrame QLabel { border: none; color: palette(mid); }"
                                      "QFrame QRadioButton, QFrame QCheckBox { border: none; }");
         }
+    }
+}
+
+void SettingsWidget::toggleServiceDetails(ProviderType provider)
+{
+    const int selected = static_cast<int>(provider);
+    if (selected < 0 || selected >= m_serviceDetailWidgets.size()) {
+        return;
+    }
+
+    QWidget *selectedWidget = m_serviceDetailWidgets.at(selected);
+    const bool shouldShow = selectedWidget && !selectedWidget->isVisible();
+    for (QWidget *widget : m_serviceDetailWidgets) {
+        if (widget) {
+            widget->setVisible(false);
+        }
+    }
+    if (selectedWidget) {
+        selectedWidget->setVisible(shouldShow);
     }
 }
 
