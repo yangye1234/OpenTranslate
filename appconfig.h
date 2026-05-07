@@ -53,6 +53,10 @@ struct HistoryConfig {
     int maxEntries = 200;
 };
 
+struct WindowBehaviorConfig {
+    bool lowerOnUnpin = false;
+};
+
 struct ShortcutConfig {
     QString swapLanguage;
     QString toggleOnTop;
@@ -79,6 +83,7 @@ struct AppConfig {
     DictionaryConfig dictionary;
     CacheConfig cache;
     HistoryConfig history;
+    WindowBehaviorConfig windowBehavior;
     ShortcutConfig shortcuts = defaultShortcutsForCurrentPlatform();
     QStringList languagePairs;
     QString defaultLanguagePair = "zh <> en";

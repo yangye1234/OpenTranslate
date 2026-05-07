@@ -89,6 +89,7 @@ AppConfig ConfigStore::load()
     if (config.history.maxEntries <= 0) {
         config.history.maxEntries = 200;
     }
+    config.windowBehavior.lowerOnUnpin = settings.value("window/lowerOnUnpin", false).toBool();
 
     config.activeProvider = providerFromInt(settings.value("provider/active", 0).toInt());
     config.appLanguage = static_cast<AppLanguage>(settings.value("app/language", 1).toInt());
@@ -165,6 +166,7 @@ void ConfigStore::save(const AppConfig &config)
     settings.setValue("cache/enabled", config.cache.enabled);
     settings.setValue("history/enabled", config.history.enabled);
     settings.setValue("history/maxEntries", config.history.maxEntries);
+    settings.setValue("window/lowerOnUnpin", config.windowBehavior.lowerOnUnpin);
 
     settings.setValue("provider/active", static_cast<int>(config.activeProvider));
     settings.setValue("app/language", static_cast<int>(config.appLanguage));

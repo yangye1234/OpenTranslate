@@ -45,6 +45,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_dictionaryGroup(nullptr)
     , m_dictionaryEnabled(nullptr)
     , m_dataGroup(nullptr)
+    , m_lowerOnUnpin(nullptr)
     , m_cacheEnabled(nullptr)
     , m_historyEnabled(nullptr)
     , m_historyMaxEntries(nullptr)
@@ -122,6 +123,7 @@ void SettingsWidget::setConfig(const AppConfig &config)
     updateServiceSelectionUi(config.activeProvider);
     refreshLanguagePairs(config.languagePairs, config.defaultLanguagePair);
     m_cacheEnabled->setChecked(config.cache.enabled);
+    m_lowerOnUnpin->setChecked(config.windowBehavior.lowerOnUnpin);
     m_historyEnabled->setChecked(config.history.enabled);
     m_historyMaxEntries->setText(QString::number(config.history.maxEntries));
 
@@ -267,6 +269,7 @@ void SettingsWidget::onSaveClicked()
         config.defaultLanguagePair = config.languagePairs.value(0, "zh <> en");
     }
     config.cache.enabled = m_cacheEnabled->isChecked();
+    config.windowBehavior.lowerOnUnpin = m_lowerOnUnpin->isChecked();
     config.history.enabled = m_historyEnabled->isChecked();
     config.history.maxEntries = m_historyMaxEntries->text().trimmed().toInt();
     if (config.history.maxEntries <= 0) {
@@ -636,6 +639,10 @@ void SettingsWidget::createExtendedSettingsUi()
     labelTargets->setObjectName("labelTargets");
     ui->formLayoutApp->addRow(labelTargets, m_defaultPairCombo);
 
+    m_lowerOnUnpin = new QCheckBox(this);
+    m_lowerOnUnpin->setObjectName("lowerOnUnpin");
+    ui->formLayoutApp->addRow(QString(), m_lowerOnUnpin);
+
     auto *labelSelectionShortcut = new QLabel(this);
     labelSelectionShortcut->setObjectName("labelSelectionShortcut");
     m_selectionShortcutEdit = new QKeySequenceEdit(this);
@@ -819,6 +826,7 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     }
 
     m_dataGroup->setTitle(L10n::text(language, "settings.group.data"));
+    m_lowerOnUnpin->setText(L10n::text(language, "settings.window.lower_on_unpin"));
     m_cacheEnabled->setText(L10n::text(language, "settings.cache.enabled"));
     m_historyEnabled->setText(L10n::text(language, "settings.history.enabled"));
     if (auto *label = findChild<QLabel *>("labelHistoryLimit")) {
@@ -872,6 +880,7 @@ void SettingsWidget::setupDirtyTracking()
 
     connect(m_providerCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
     connect(m_defaultPairCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &SettingsWidget::onAnySettingChanged);
+    connect(m_lowerOnUnpin, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLEnabled, &QCheckBox::toggled, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLAuthKey, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);
     connect(m_deepLBaseUrl, &QLineEdit::textChanged, this, &SettingsWidget::onAnySettingChanged);

@@ -88,6 +88,7 @@ private:
     QGroupBox *m_dictionaryGroup;
     QCheckBox *m_dictionaryEnabled;
     QGroupBox *m_dataGroup;
+    QCheckBox *m_lowerOnUnpin;
     QCheckBox *m_cacheEnabled;
     QCheckBox *m_historyEnabled;
     QLineEdit *m_historyMaxEntries;

@@ -278,6 +278,7 @@ void Translate::mouseMoveEvent(QMouseEvent *event)
 
 void Translate::toggleStayOnTop() {
     bool isOnTop = windowFlags() & Qt::WindowStaysOnTopHint;
+    const bool willPin = !isOnTop;
 
     if (isOnTop) {
         // 如果已经在顶层，则移除置顶标志
@@ -289,8 +290,14 @@ void Translate::toggleStayOnTop() {
 
     // 显示窗口并激活
     show();
-    activateWindow();
-    raise();
+    if (!willPin && m_config.windowBehavior.lowerOnUnpin) {
+        lower();
+    } else {
+        activateWindow();
+        raise();
+        ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
+        ui->OriginalText->selectAll();
+    }
 }
 
 void Translate::openSettings()

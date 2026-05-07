@@ -34,6 +34,7 @@ QString en(const QString &key)
     if (key == "settings.label.app_language") return "App Language";
     if (key == "settings.label.provider") return "Default Provider";
     if (key == "settings.label.pairs_default") return "Default Language Pair";
+    if (key == "settings.window.lower_on_unpin") return "Lower window when unpinned";
     if (key == "settings.shortcuts.swap") return "Swap Language";
     if (key == "settings.shortcuts.pin") return "Toggle On Top";
     if (key == "settings.shortcuts.settings") return "Open Settings";
@@ -146,6 +147,7 @@ QString zhCN(const QString &key)
     if (key == "settings.label.app_language") return "应用语言";
     if (key == "settings.label.provider") return "默认翻译服务";
     if (key == "settings.label.pairs_default") return "默认语言对";
+    if (key == "settings.window.lower_on_unpin") return "取消置顶时置底隐藏";
     if (key == "settings.shortcuts.swap") return "语言互转";
     if (key == "settings.shortcuts.pin") return "切换置顶";
     if (key == "settings.shortcuts.settings") return "打开设置";
@@ -258,6 +260,7 @@ QString zhTW(const QString &key)
     if (key == "settings.label.app_language") return "應用語言";
     if (key == "settings.label.provider") return "預設翻譯服務";
     if (key == "settings.label.pairs_default") return "預設語言對";
+    if (key == "settings.window.lower_on_unpin") return "取消置頂時置底隱藏";
     if (key == "settings.shortcuts.swap") return "語言互轉";
     if (key == "settings.shortcuts.pin") return "切換置頂";
     if (key == "settings.shortcuts.settings") return "開啟設定";
