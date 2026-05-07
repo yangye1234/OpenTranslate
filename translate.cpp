@@ -83,6 +83,8 @@ void setupMacNativeHotkeyMappings()
     }
     QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+,", QKeySequence::PortableText),
                               QHotkey::NativeShortcut(kVK_ANSI_Comma, cmdKey));
+    QHotkey::addGlobalMapping(QKeySequence::fromString("Ctrl+Meta+Space", QKeySequence::PortableText),
+                              QHotkey::NativeShortcut(kVK_Space, cmdKey | controlKey));
 }
 
 bool sendNativeCopyShortcut()
@@ -141,6 +143,7 @@ Translate::Translate(QWidget *parent)
     , m_pinHotkey(nullptr)
     , m_settingsHotkey(nullptr)
     , m_selectionHotkey(nullptr)
+    , m_speechHotkey(nullptr)
     , m_isTranslating(false)
 {
     ui->setupUi(this);
@@ -632,7 +635,7 @@ void Translate::applyShortcuts(const ShortcutConfig &shortcuts)
 
 bool Translate::hasRegisteredHotkeys() const
 {
-    return m_swapHotkey || m_pinHotkey || m_settingsHotkey || m_selectionHotkey;
+    return m_swapHotkey || m_pinHotkey || m_settingsHotkey || m_selectionHotkey || m_speechHotkey;
 }
 
 void Translate::unregisterGlobalHotkeys()
@@ -649,6 +652,7 @@ void Translate::unregisterGlobalHotkeys()
     cleanup(m_pinHotkey);
     cleanup(m_settingsHotkey);
     cleanup(m_selectionHotkey);
+    cleanup(m_speechHotkey);
 }
 
 void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
@@ -736,6 +740,12 @@ void Translate::registerGlobalHotkeys(const ShortcutConfig &shortcuts)
                    &Translate::translateSelection,
                    L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.selection"),
                    L10n::text(m_config.appLanguage, "dialog.hotkey.failed.selection"));
+    registerAction(m_speechHotkey,
+                   finalShortcuts.toggleSpeech,
+                   defaults.toggleSpeech,
+                   &Translate::toggleSpeech,
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.fallback.speech"),
+                   L10n::text(m_config.appLanguage, "dialog.hotkey.failed.speech"));
 
     m_hotkeyStatusMessage = warnings.join("\n");
 

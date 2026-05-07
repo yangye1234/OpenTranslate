@@ -58,16 +58,17 @@ struct ShortcutConfig {
     QString toggleOnTop;
     QString openSettings;
     QString translateSelection;
+    QString toggleSpeech;
 };
 
 inline ShortcutConfig defaultShortcutsForCurrentPlatform()
 {
 #if defined(Q_OS_MACOS)
-    return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Ctrl+,", "Ctrl+Meta+D"};
+    return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Ctrl+,", "Ctrl+Meta+D", "Ctrl+Meta+Space"};
 #elif defined(Q_OS_WIN)
-    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D"};
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D", "Ctrl+Alt+Space"};
 #else
-    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D"};
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D", "Ctrl+Alt+Space"};
 #endif
 }
 

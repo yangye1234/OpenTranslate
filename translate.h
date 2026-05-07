@@ -76,6 +76,7 @@ private:
     QHotkey *m_pinHotkey;
     QHotkey *m_settingsHotkey;
     QHotkey *m_selectionHotkey;
+    QHotkey *m_speechHotkey;
     bool m_isTranslating;
     QString m_hotkeyStatusMessage;
     TranslationCacheStore m_translationCache;

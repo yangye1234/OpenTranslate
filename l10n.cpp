@@ -20,10 +20,12 @@ QString en(const QString &key)
     if (key == "dialog.hotkey.fallback.pin") return "On-top hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.settings") return "Settings hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.selection") return "Translate selection hotkey failed, reverted to default.";
+    if (key == "dialog.hotkey.fallback.speech") return "Audio hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.failed.swap") return "Swap hotkey registration failed.";
     if (key == "dialog.hotkey.failed.pin") return "On-top hotkey registration failed.";
     if (key == "dialog.hotkey.failed.settings") return "Settings hotkey registration failed.";
     if (key == "dialog.hotkey.failed.selection") return "Translate selection hotkey registration failed.";
+    if (key == "dialog.hotkey.failed.speech") return "Audio hotkey registration failed.";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.group.app") return "Application";
@@ -36,6 +38,7 @@ QString en(const QString &key)
     if (key == "settings.shortcuts.pin") return "Toggle On Top";
     if (key == "settings.shortcuts.settings") return "Open Settings";
     if (key == "settings.shortcuts.selection") return "Translate Selection";
+    if (key == "settings.shortcuts.speech") return "Play / Pause Audio";
     if (key == "settings.service.section.free") return "No API Key";
     if (key == "settings.service.section.api_key") return "Requires API Key";
     if (key == "settings.service.enabled") return "Enabled";
@@ -129,10 +132,12 @@ QString zhCN(const QString &key)
     if (key == "dialog.hotkey.fallback.pin") return "置顶快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.settings") return "设置快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.selection") return "翻译选中文本快捷键注册失败，已回退默认。";
+    if (key == "dialog.hotkey.fallback.speech") return "播放语音快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.failed.swap") return "语言互转快捷键注册失败。";
     if (key == "dialog.hotkey.failed.pin") return "置顶快捷键注册失败。";
     if (key == "dialog.hotkey.failed.settings") return "设置快捷键注册失败。";
     if (key == "dialog.hotkey.failed.selection") return "翻译选中文本快捷键注册失败。";
+    if (key == "dialog.hotkey.failed.speech") return "播放语音快捷键注册失败。";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.group.app") return "应用";
@@ -145,6 +150,7 @@ QString zhCN(const QString &key)
     if (key == "settings.shortcuts.pin") return "切换置顶";
     if (key == "settings.shortcuts.settings") return "打开设置";
     if (key == "settings.shortcuts.selection") return "翻译选中文本";
+    if (key == "settings.shortcuts.speech") return "播放/暂停语音";
     if (key == "settings.service.section.free") return "无需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "启用";
@@ -238,10 +244,12 @@ QString zhTW(const QString &key)
     if (key == "dialog.hotkey.fallback.pin") return "置頂快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.settings") return "設定快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.selection") return "翻譯選取文字快捷鍵註冊失敗，已回退預設。";
+    if (key == "dialog.hotkey.fallback.speech") return "播放語音快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.failed.swap") return "語言互轉快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.pin") return "置頂快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.settings") return "設定快捷鍵註冊失敗。";
     if (key == "dialog.hotkey.failed.selection") return "翻譯選取文字快捷鍵註冊失敗。";
+    if (key == "dialog.hotkey.failed.speech") return "播放語音快捷鍵註冊失敗。";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.group.app") return "應用";
@@ -254,6 +262,7 @@ QString zhTW(const QString &key)
     if (key == "settings.shortcuts.pin") return "切換置頂";
     if (key == "settings.shortcuts.settings") return "開啟設定";
     if (key == "settings.shortcuts.selection") return "翻譯選取文字";
+    if (key == "settings.shortcuts.speech") return "播放/暫停語音";
     if (key == "settings.service.section.free") return "無需 API Key";
     if (key == "settings.service.section.api_key") return "需要 API Key";
     if (key == "settings.service.enabled") return "啟用";

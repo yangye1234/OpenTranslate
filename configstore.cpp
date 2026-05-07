@@ -96,6 +96,7 @@ AppConfig ConfigStore::load()
     config.shortcuts.toggleOnTop = settings.value("shortcuts/pin", config.shortcuts.toggleOnTop).toString();
     config.shortcuts.openSettings = settings.value("shortcuts/settings", config.shortcuts.openSettings).toString();
     config.shortcuts.translateSelection = settings.value("shortcuts/translateSelection", config.shortcuts.translateSelection).toString();
+    config.shortcuts.toggleSpeech = settings.value("shortcuts/toggleSpeech", config.shortcuts.toggleSpeech).toString();
 
     if (config.shortcuts.swapLanguage.trimmed().isEmpty()) {
         config.shortcuts.swapLanguage = defaultShortcutsForCurrentPlatform().swapLanguage;
@@ -108,6 +109,9 @@ AppConfig ConfigStore::load()
     }
     if (config.shortcuts.translateSelection.trimmed().isEmpty()) {
         config.shortcuts.translateSelection = defaultShortcutsForCurrentPlatform().translateSelection;
+    }
+    if (config.shortcuts.toggleSpeech.trimmed().isEmpty()) {
+        config.shortcuts.toggleSpeech = defaultShortcutsForCurrentPlatform().toggleSpeech;
     }
 #if defined(Q_OS_MACOS)
     // Migration: previous versions accidentally used Meta+, which maps to Control key on macOS.
@@ -168,6 +172,7 @@ void ConfigStore::save(const AppConfig &config)
     settings.setValue("shortcuts/pin", config.shortcuts.toggleOnTop);
     settings.setValue("shortcuts/settings", config.shortcuts.openSettings);
     settings.setValue("shortcuts/translateSelection", config.shortcuts.translateSelection);
+    settings.setValue("shortcuts/toggleSpeech", config.shortcuts.toggleSpeech);
     settings.setValue("languages/pairs", normalizedPairs(config.languagePairs));
     settings.setValue("languages/defaultPair", normalizedPair(config.defaultLanguagePair));
 }

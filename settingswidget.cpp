@@ -35,6 +35,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_providerCombo(nullptr)
     , m_defaultPairCombo(nullptr)
     , m_selectionShortcutEdit(nullptr)
+    , m_speechShortcutEdit(nullptr)
     , m_servicesGroup(nullptr)
     , m_serviceButtons(nullptr)
     , m_deepLGroup(nullptr)
@@ -141,6 +142,9 @@ void SettingsWidget::setConfig(const AppConfig &config)
     if (shortcuts.translateSelection.trimmed().isEmpty()) {
         shortcuts.translateSelection = defaults.translateSelection;
     }
+    if (shortcuts.toggleSpeech.trimmed().isEmpty()) {
+        shortcuts.toggleSpeech = defaults.toggleSpeech;
+    }
 
     ui->swapShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.swapLanguage,
                                                                     QKeySequence::PortableText));
@@ -150,6 +154,8 @@ void SettingsWidget::setConfig(const AppConfig &config)
                                                                        QKeySequence::PortableText));
     m_selectionShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.translateSelection,
                                                                       QKeySequence::PortableText));
+    m_speechShortcutEdit->setKeySequence(QKeySequence::fromString(shortcuts.toggleSpeech,
+                                                                   QKeySequence::PortableText));
 
     applyLanguage(m_uiLanguage);
     ui->pairEdit->clear();
@@ -277,6 +283,7 @@ void SettingsWidget::onSaveClicked()
     config.shortcuts.toggleOnTop = toPortable(ui->pinShortcutEdit->keySequence());
     config.shortcuts.openSettings = toPortable(ui->settingsShortcutEdit->keySequence());
     config.shortcuts.translateSelection = toPortable(m_selectionShortcutEdit->keySequence());
+    config.shortcuts.toggleSpeech = toPortable(m_speechShortcutEdit->keySequence());
 
     if (config.shortcuts.swapLanguage.isEmpty()) {
         config.shortcuts.swapLanguage = defaults.swapLanguage;
@@ -289,6 +296,9 @@ void SettingsWidget::onSaveClicked()
     }
     if (config.shortcuts.translateSelection.isEmpty()) {
         config.shortcuts.translateSelection = defaults.translateSelection;
+    }
+    if (config.shortcuts.toggleSpeech.isEmpty()) {
+        config.shortcuts.toggleSpeech = defaults.toggleSpeech;
     }
 
     if (hasShortcutConflict(config.shortcuts)) {
@@ -631,6 +641,11 @@ void SettingsWidget::createExtendedSettingsUi()
     m_selectionShortcutEdit = new QKeySequenceEdit(this);
     ui->formLayoutShortcuts->insertRow(3, labelSelectionShortcut, m_selectionShortcutEdit);
 
+    auto *labelSpeechShortcut = new QLabel(this);
+    labelSpeechShortcut->setObjectName("labelSpeechShortcut");
+    m_speechShortcutEdit = new QKeySequenceEdit(this);
+    ui->formLayoutShortcuts->insertRow(4, labelSpeechShortcut, m_speechShortcutEdit);
+
     m_dataGroup = new QGroupBox(this);
     auto *dataLayout = new QVBoxLayout(m_dataGroup);
     m_cacheEnabled = new QCheckBox(m_dataGroup);
@@ -776,6 +791,9 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     if (auto *label = findChild<QLabel *>("labelSelectionShortcut")) {
         label->setText(L10n::text(language, "settings.shortcuts.selection"));
     }
+    if (auto *label = findChild<QLabel *>("labelSpeechShortcut")) {
+        label->setText(L10n::text(language, "settings.shortcuts.speech"));
+    }
     ui->hotkeyStatusLabel->setText(m_hotkeyStatusMessage);
     ui->hotkeyStatusLabel->setVisible(!m_hotkeyStatusMessage.isEmpty());
 
@@ -879,6 +897,10 @@ void SettingsWidget::setupDirtyTracking()
             &QKeySequenceEdit::keySequenceChanged,
             this,
             &SettingsWidget::onAnySettingChanged);
+    connect(m_speechShortcutEdit,
+            &QKeySequenceEdit::keySequenceChanged,
+            this,
+            &SettingsWidget::onAnySettingChanged);
 }
 
 void SettingsWidget::updateServiceSelectionUi(ProviderType provider)
@@ -946,7 +968,8 @@ bool SettingsWidget::hasShortcutConflict(const ShortcutConfig &shortcuts)
         canonical(shortcuts.swapLanguage),
         canonical(shortcuts.toggleOnTop),
         canonical(shortcuts.openSettings),
-        canonical(shortcuts.translateSelection)
+        canonical(shortcuts.translateSelection),
+        canonical(shortcuts.toggleSpeech)
     };
 
     for (const QString &value : values) {

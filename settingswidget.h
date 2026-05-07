@@ -76,6 +76,7 @@ private:
     QComboBox *m_providerCombo;
     QComboBox *m_defaultPairCombo;
     QKeySequenceEdit *m_selectionShortcutEdit;
+    QKeySequenceEdit *m_speechShortcutEdit;
     QGroupBox *m_servicesGroup;
     QButtonGroup *m_serviceButtons;
     QVector<QCheckBox *> m_serviceEnabledChecks;
