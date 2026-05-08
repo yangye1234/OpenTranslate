@@ -6,6 +6,7 @@
 #include <QMetaObject>
 #include <QStringList>
 
+#if defined(OPENTRANSLATE_HAS_CPPWINRT)
 #include <thread>
 
 #include <winrt/Windows.Foundation.h>
@@ -14,8 +15,10 @@
 #include <winrt/Windows.Media.Ocr.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/base.h>
+#endif
 
 namespace {
+#if defined(OPENTRANSLATE_HAS_CPPWINRT)
 using namespace winrt;
 using namespace Windows::Globalization;
 using namespace Windows::Graphics::Imaging;
@@ -200,6 +203,25 @@ public:
         }).detach();
     }
 };
+#else
+class WindowsOcrService : public OcrService
+{
+public:
+    explicit WindowsOcrService(QObject *parent = nullptr)
+        : OcrService(parent)
+    {
+    }
+
+    void recognizeText(const QImage &image, const QStringList &languageHints) override
+    {
+        Q_UNUSED(image)
+        Q_UNUSED(languageHints)
+        emit recognitionFinished(false,
+                                 QString(),
+                                 QStringLiteral("Windows screenshot OCR is disabled because this build environment does not provide C++/WinRT headers."));
+    }
+};
+#endif
 }
 
 OcrService *OcrService::create(QObject *parent)
