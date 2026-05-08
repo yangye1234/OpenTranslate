@@ -21,6 +21,7 @@ private slots:
 private:
     QNetworkAccessManager m_network;
     DictionaryConfig m_config;
+    QString m_pendingQuery;
     QString m_pendingFrom;
     QString m_pendingTo;
 };
