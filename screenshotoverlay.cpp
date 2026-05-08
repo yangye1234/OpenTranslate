@@ -71,6 +71,12 @@ void ScreenshotOverlay::keyPressEvent(QKeyEvent *event)
 
 void ScreenshotOverlay::mousePressEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::RightButton) {
+        emit captureCancelled();
+        close();
+        deleteLater();
+        return;
+    }
     if (event->button() != Qt::LeftButton) {
         return;
     }
