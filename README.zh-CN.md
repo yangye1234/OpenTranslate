@@ -29,7 +29,7 @@ OpenTranslate 是一个基于 Qt Widgets 的轻量全平台翻译工具，支持
 - 选中文本翻译使用剪贴板复制/恢复策略。
 - 截图翻译：
   - macOS：Apple Vision OCR
-  - Windows：构建环境有 C++/WinRT 头文件时启用 Windows OCR，否则降级为可编译 stub
+  - Windows：使用带 Windows SDK C++/WinRT 头文件的 MSVC Qt Kit 时启用 Windows OCR，否则降级为可编译 stub
 - 翻译缓存支持启用、清理、导入、导出。
 - 翻译历史支持查看、复制、清空和最大条数限制。
 - 设置页按通用、服务、快捷键、隐私、关于分类。
@@ -109,5 +109,5 @@ macOS 和 Windows 打包说明见 [PACKAGING.md](PACKAGING.md)。
 
 - macOS 选中文本翻译需要授予“辅助功能”权限。
 - macOS 截图翻译需要授予“屏幕录制”权限。
-- Windows 截图 OCR 构建时需要 Windows SDK C++/WinRT 头文件；没有时 OCR 会禁用，但主程序仍可构建。
+- Windows 截图 OCR 构建时需要带 Windows SDK C++/WinRT 头文件的 MSVC Qt Kit。如果找不到 `winrt/Windows.Foundation.h`，OCR 会禁用但主程序仍可构建；安装 Windows SDK C++/WinRT 头文件后重新配置 CMake 即可启用。
 - 离线能力基于缓存命中，不包含本地模型推理。

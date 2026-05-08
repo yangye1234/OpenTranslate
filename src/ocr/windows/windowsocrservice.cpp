@@ -218,7 +218,7 @@ public:
         Q_UNUSED(languageHints)
         emit recognitionFinished(false,
                                  QString(),
-                                 QStringLiteral("Windows screenshot OCR is disabled because this build environment does not provide C++/WinRT headers."));
+                                 QStringLiteral("Windows screenshot OCR is disabled because this build does not include C++/WinRT headers. Use an MSVC Qt Kit with Windows SDK C++/WinRT headers, then reconfigure CMake."));
     }
 };
 #endif
