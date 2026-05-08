@@ -29,7 +29,7 @@ Current version: `0.2`
 - Selection translation using clipboard copy/restore flow.
 - Screenshot translation:
   - macOS: Apple Vision OCR
-  - Windows: Windows OCR with an MSVC Qt Kit and Windows SDK C++/WinRT headers, otherwise build-safe OCR stub
+  - Windows: native Windows OCR with C++/WinRT when available, otherwise PowerShell Windows Runtime OCR fallback
 - Translation cache with enable/clear/import/export controls.
 - Translation history with view/copy/clear controls and max-entry limit.
 - Categorized settings UI for General, Services, Shortcuts, Privacy, and About.
@@ -109,5 +109,5 @@ Cache file:
 
 - macOS selection translation requires Accessibility permission.
 - macOS screenshot translation requires Screen Recording permission.
-- Windows screenshot OCR requires an MSVC Qt Kit with Windows SDK C++/WinRT headers at build time. If `winrt/Windows.Foundation.h` is not found, OCR is disabled but the app still builds; install the Windows SDK C++/WinRT headers and reconfigure CMake to enable it.
+- Windows screenshot OCR prefers an MSVC Qt Kit with Windows SDK C++/WinRT headers. If `winrt/Windows.Foundation.h` is not found, OpenTranslate uses a PowerShell Windows Runtime OCR fallback; install Windows SDK C++/WinRT headers and reconfigure CMake to enable the native path.
 - Offline behavior is cache-based only.

@@ -2,9 +2,14 @@
 
 #include <QBuffer>
 #include <QByteArray>
+#include <QDir>
+#include <QFile>
 #include <QImage>
 #include <QMetaObject>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QStringList>
+#include <QUuid>
 
 #if defined(OPENTRANSLATE_HAS_CPPWINRT)
 #include <thread>
@@ -18,13 +23,6 @@
 #endif
 
 namespace {
-#if defined(OPENTRANSLATE_HAS_CPPWINRT)
-using namespace winrt;
-using namespace Windows::Globalization;
-using namespace Windows::Graphics::Imaging;
-using namespace Windows::Media::Ocr;
-using namespace Windows::Storage::Streams;
-
 QString windowsLanguageTag(const QString &language)
 {
     const QString code = language.trimmed().toLower();
@@ -66,6 +64,13 @@ QString windowsLanguageTag(const QString &language)
     }
     return {};
 }
+
+#if defined(OPENTRANSLATE_HAS_CPPWINRT)
+using namespace winrt;
+using namespace Windows::Globalization;
+using namespace Windows::Graphics::Imaging;
+using namespace Windows::Media::Ocr;
+using namespace Windows::Storage::Streams;
 
 OcrEngine createEngine(const QStringList &languageHints)
 {
@@ -204,6 +209,91 @@ public:
     }
 };
 #else
+QString powerShellOcrScript()
+{
+    return QStringLiteral(R"ps1(param([string]$ImagePath, [string[]]$LanguageTags)
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapPixelFormat, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapAlphaMode, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
+$null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType=WindowsRuntime]
+$null = [Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType=WindowsRuntime]
+$null = [Windows.Globalization.Language, Windows.Globalization, ContentType=WindowsRuntime]
+$asTaskMethods = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 }
+function AwaitOperation($Operation, [Type]$ResultType) {
+    foreach ($method in $asTaskMethods) {
+        try {
+            $task = $method.MakeGenericMethod($ResultType).Invoke($null, @($Operation))
+            $task.Wait()
+            return $task.Result
+        } catch {
+        }
+    }
+    throw 'Could not await Windows Runtime OCR operation.'
+}
+$engine = $null
+foreach ($tag in $LanguageTags) {
+    if ([string]::IsNullOrWhiteSpace($tag)) { continue }
+    try {
+        $language = [Windows.Globalization.Language]::new($tag)
+        $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+        if ($null -ne $engine) { break }
+    } catch {
+    }
+}
+if ($null -eq $engine) {
+    $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+}
+if ($null -eq $engine) {
+    throw 'No Windows OCR language is available. Install OCR language features in Windows Settings.'
+}
+$file = AwaitOperation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($ImagePath)) ([Windows.Storage.StorageFile])
+$stream = AwaitOperation ($file.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+$decoder = AwaitOperation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+$bitmap = AwaitOperation ($decoder.GetSoftwareBitmapAsync([Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Premultiplied)) ([Windows.Graphics.Imaging.SoftwareBitmap])
+$result = AwaitOperation ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+$lines = @()
+foreach ($line in $result.Lines) {
+    if (-not [string]::IsNullOrWhiteSpace($line.Text)) {
+        $lines += $line.Text
+    }
+}
+$text = ($lines -join [Environment]::NewLine).Trim()
+if ([string]::IsNullOrWhiteSpace($text)) {
+    throw 'No text was recognized in the screenshot.'
+}
+Write-Output $text
+)ps1");
+}
+
+QStringList windowsOcrLanguageTags(const QStringList &languageHints)
+{
+    QStringList tags;
+    for (const QString &hint : languageHints) {
+        const QString tag = windowsLanguageTag(hint);
+        if (!tag.isEmpty()) {
+            tags << tag;
+        }
+    }
+    tags.removeDuplicates();
+    return tags;
+}
+
+QString createTempFilePath(const QString &suffix)
+{
+    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tempDir.isEmpty()) {
+        tempDir = QDir::tempPath();
+    }
+    return QDir(tempDir).filePath(QStringLiteral("opentranslate_ocr_%1%2")
+                                      .arg(QUuid::createUuid().toString(QUuid::WithoutBraces), suffix));
+}
+
 class WindowsOcrService : public OcrService
 {
 public:
@@ -214,11 +304,74 @@ public:
 
     void recognizeText(const QImage &image, const QStringList &languageHints) override
     {
-        Q_UNUSED(image)
-        Q_UNUSED(languageHints)
-        emit recognitionFinished(false,
-                                 QString(),
-                                 QStringLiteral("Windows screenshot OCR is disabled because this build does not include C++/WinRT headers. Use an MSVC Qt Kit with Windows SDK C++/WinRT headers, then reconfigure CMake."));
+        if (image.isNull()) {
+            emit recognitionFinished(false, QString(), QStringLiteral("Screenshot image is empty."));
+            return;
+        }
+
+        const QString imagePath = createTempFilePath(QStringLiteral(".png"));
+        const QString scriptPath = createTempFilePath(QStringLiteral(".ps1"));
+        if (!image.save(imagePath, "PNG")) {
+            emit recognitionFinished(false, QString(), QStringLiteral("Failed to prepare screenshot for Windows OCR."));
+            return;
+        }
+
+        QFile scriptFile(scriptPath);
+        if (!scriptFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QFile::remove(imagePath);
+            emit recognitionFinished(false, QString(), QStringLiteral("Failed to prepare Windows OCR fallback script."));
+            return;
+        }
+        scriptFile.write(powerShellOcrScript().toUtf8());
+        scriptFile.close();
+
+        auto *process = new QProcess(this);
+        QStringList arguments {
+            QStringLiteral("-NoProfile"),
+            QStringLiteral("-ExecutionPolicy"),
+            QStringLiteral("Bypass"),
+            QStringLiteral("-File"),
+            scriptPath,
+            imagePath,
+        };
+        arguments.append(windowsOcrLanguageTags(languageHints));
+
+        connect(process, &QProcess::errorOccurred, this, [this, process, imagePath, scriptPath](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart) {
+                return;
+            }
+            process->setProperty("opentranslateHandled", true);
+            QFile::remove(imagePath);
+            QFile::remove(scriptPath);
+            emit recognitionFinished(false, QString(), QStringLiteral("PowerShell Windows OCR fallback could not be started."));
+            process->deleteLater();
+        });
+        connect(process,
+                qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+                this,
+                [this, process, imagePath, scriptPath](int exitCode, QProcess::ExitStatus exitStatus) {
+                    if (process->property("opentranslateHandled").toBool()) {
+                        return;
+                    }
+                    const QString output = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+                    const QString errorOutput = QString::fromUtf8(process->readAllStandardError()).trimmed();
+                    QFile::remove(imagePath);
+                    QFile::remove(scriptPath);
+                    process->deleteLater();
+
+                    if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+                        emit recognitionFinished(false,
+                                                 QString(),
+                                                 errorOutput.isEmpty() ? QStringLiteral("Windows OCR failed.") : errorOutput);
+                        return;
+                    }
+                    if (output.isEmpty()) {
+                        emit recognitionFinished(false, QString(), QStringLiteral("No text was recognized in the screenshot."));
+                        return;
+                    }
+                    emit recognitionFinished(true, output, QString());
+                });
+        process->start(QStringLiteral("powershell.exe"), arguments);
     }
 };
 #endif
