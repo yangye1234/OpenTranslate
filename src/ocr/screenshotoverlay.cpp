@@ -179,6 +179,23 @@ QRect ScreenshotOverlay::imageRectForSelection(const QRect &selection) const
 
 QImage ScreenshotOverlay::captureSelection(const QRect &selection) const
 {
+#if defined(Q_OS_WIN)
+    if (m_screen) {
+        const QRect globalSelection = selection.translated(m_screen->geometry().topLeft());
+        const QPixmap freshCapture = m_screen->grabWindow(0,
+                                                          globalSelection.x(),
+                                                          globalSelection.y(),
+                                                          globalSelection.width(),
+                                                          globalSelection.height());
+        if (!freshCapture.isNull()) {
+            const QImage image = freshCapture.toImage();
+            if (!image.isNull()) {
+                return image;
+            }
+        }
+    }
+#endif
+
     const QRect imageRect = imageRectForSelection(selection);
     if (imageRect.isEmpty()) {
         return {};
