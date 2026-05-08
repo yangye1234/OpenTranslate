@@ -225,16 +225,30 @@ $null = [Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, Cont
 $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType=WindowsRuntime]
 $null = [Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType=WindowsRuntime]
 $null = [Windows.Globalization.Language, Windows.Globalization, ContentType=WindowsRuntime]
-$asTaskMethod = [System.WindowsRuntimeSystemExtensions].GetMethods() |
+$asTaskCandidates = [System.WindowsRuntimeSystemExtensions].GetMethods() |
     Where-Object {
         $_.Name -eq 'AsTask' -and
         $_.IsGenericMethodDefinition -and
-        $_.GetParameters().Count -eq 1 -and
-        $_.GetParameters()[0].ParameterType.FullName -eq 'Windows.Foundation.IAsyncOperation`1'
+        $_.GetParameters().Count -eq 1
+    }
+$asTaskMethod = $asTaskCandidates |
+    Where-Object {
+        $parameterType = $_.GetParameters()[0].ParameterType
+        $parameterType.Namespace -eq 'Windows.Foundation' -and
+        ($parameterType.Name -eq 'IAsyncOperation`1' -or $parameterType.FullName -like 'Windows.Foundation.IAsyncOperation`1*')
     } |
     Select-Object -First 1
 if ($null -eq $asTaskMethod) {
-    throw 'Could not find Windows Runtime AsTask IAsyncOperation overload.'
+    $asTaskMethod = $asTaskCandidates |
+        Where-Object {
+            $parameterType = $_.GetParameters()[0].ParameterType
+            $parameterType.Name -like 'IAsyncOperation*' -or $parameterType.FullName -like '*IAsyncOperation*'
+        } |
+        Select-Object -First 1
+}
+if ($null -eq $asTaskMethod) {
+    $available = ($asTaskCandidates | ForEach-Object { $_.GetParameters()[0].ParameterType.FullName + ' / ' + $_.GetParameters()[0].ParameterType.Name }) -join '; '
+    throw "Could not find Windows Runtime AsTask IAsyncOperation overload. Available AsTask overloads: $available"
 }
 function AwaitOperation($Operation, [Type]$ResultType) {
     if ($null -eq $Operation) {
