@@ -17,21 +17,30 @@ fi
 
 mkdir -p "$ICON_DIR"
 
+ICON_SRC="$SRC_PNG"
+PADDED_SRC=""
+if command -v magick >/dev/null 2>&1; then
+  PADDED_SRC="$(mktemp "${TMPDIR:-/tmp}/opentranslate-icon.XXXXXX.png")"
+  magick "$SRC_PNG" -resize 80%x80% -background none -gravity center -extent 1024x1024 "$PADDED_SRC"
+  ICON_SRC="$PADDED_SRC"
+  trap '[[ -n "${PADDED_SRC:-}" ]] && rm -f "$PADDED_SRC"' EXIT
+fi
+
 if [[ "$OSTYPE" == darwin* ]]; then
   ICONSET_DIR="$ICON_DIR/app.iconset"
   rm -rf "$ICONSET_DIR"
   mkdir -p "$ICONSET_DIR"
 
-  sips -z 16 16 "$SRC_PNG" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
-  sips -z 32 32 "$SRC_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
-  sips -z 32 32 "$SRC_PNG" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
-  sips -z 64 64 "$SRC_PNG" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
-  sips -z 128 128 "$SRC_PNG" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
-  sips -z 256 256 "$SRC_PNG" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
-  sips -z 256 256 "$SRC_PNG" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
-  sips -z 512 512 "$SRC_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
-  sips -z 512 512 "$SRC_PNG" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
-  sips -z 1024 1024 "$SRC_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+  sips -z 16 16 "$ICON_SRC" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$ICON_SRC" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$ICON_SRC" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$ICON_SRC" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$ICON_SRC" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$ICON_SRC" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$ICON_SRC" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$ICON_SRC" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$ICON_SRC" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$ICON_SRC" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
 
   xattr -cr "$ICONSET_DIR" 2>/dev/null || true
   if iconutil -c icns "$ICONSET_DIR" -o "$ICON_DIR/app.icns"; then
@@ -75,10 +84,10 @@ NODE
 fi
 
 if command -v magick >/dev/null 2>&1; then
-  magick "$SRC_PNG" -define icon:auto-resize=16,24,32,48,64,128,256 "$ICON_DIR/app.ico"
+  magick "$ICON_SRC" -define icon:auto-resize=16,24,32,48,64,128,256 "$ICON_DIR/app.ico"
   echo "Generated Windows icon: $ICON_DIR/app.ico"
 elif command -v convert >/dev/null 2>&1; then
-  convert "$SRC_PNG" -define icon:auto-resize=16,24,32,48,64,128,256 "$ICON_DIR/app.ico"
+  convert "$ICON_SRC" -define icon:auto-resize=16,24,32,48,64,128,256 "$ICON_DIR/app.ico"
   echo "Generated Windows icon: $ICON_DIR/app.ico"
 else
   echo "ImageMagick not found. Install it to generate Windows .ico automatically."
