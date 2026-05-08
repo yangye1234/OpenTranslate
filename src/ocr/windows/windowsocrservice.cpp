@@ -12,6 +12,8 @@
 
 #if defined(OPENTRANSLATE_HAS_CPPWINRT)
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Globalization.h>
@@ -71,8 +73,44 @@ using namespace Windows::Graphics::Imaging;
 using namespace Windows::Media::Ocr;
 using namespace Windows::Storage::Streams;
 
-OcrEngine createEngine(const QStringList &languageHints)
+int scriptScore(const QString &text, const QString &languageTag)
 {
+    int cjk = 0;
+    int kana = 0;
+    int hangul = 0;
+    int latin = 0;
+    for (const QChar ch : text) {
+        const ushort u = ch.unicode();
+        if ((u >= 0x4E00 && u <= 0x9FFF) || (u >= 0x3400 && u <= 0x4DBF)) {
+            ++cjk;
+        } else if ((u >= 0x3040 && u <= 0x30FF) || (u >= 0x31F0 && u <= 0x31FF)) {
+            ++kana;
+        } else if (u >= 0xAC00 && u <= 0xD7AF) {
+            ++hangul;
+        } else if ((u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z')) {
+            ++latin;
+        }
+    }
+
+    const QString tag = languageTag.toLower();
+    int score = text.trimmed().size();
+    if (tag.startsWith(QStringLiteral("zh"))) {
+        score += cjk * 8 + latin;
+    } else if (tag.startsWith(QStringLiteral("ja"))) {
+        score += (kana + cjk) * 8 + latin;
+    } else if (tag.startsWith(QStringLiteral("ko"))) {
+        score += hangul * 8 + latin;
+    } else if (tag.startsWith(QStringLiteral("en"))) {
+        score += latin * 4;
+    } else {
+        score += latin + cjk + kana + hangul;
+    }
+    return score;
+}
+
+std::vector<std::pair<QString, OcrEngine>> createEngines(const QStringList &languageHints)
+{
+    std::vector<std::pair<QString, OcrEngine>> engines;
     for (const QString &hint : languageHints) {
         const QString tag = windowsLanguageTag(hint);
         if (tag.isEmpty()) {
@@ -82,7 +120,7 @@ OcrEngine createEngine(const QStringList &languageHints)
             Language language(tag.toStdWString());
             OcrEngine engine = OcrEngine::TryCreateFromLanguage(language);
             if (engine) {
-                return engine;
+                engines.emplace_back(tag, engine);
             }
         } catch (...) {
         }
@@ -90,9 +128,18 @@ OcrEngine createEngine(const QStringList &languageHints)
 
     OcrEngine engine = OcrEngine::TryCreateFromUserProfileLanguages();
     if (engine) {
-        return engine;
+        engines.emplace_back(QStringLiteral("user"), engine);
     }
-    return OcrEngine::TryCreateFromLanguage(Language(L"en-US"));
+    if (engines.empty()) {
+        try {
+            OcrEngine fallback = OcrEngine::TryCreateFromLanguage(Language(L"en-US"));
+            if (fallback) {
+                engines.emplace_back(QStringLiteral("en-US"), fallback);
+            }
+        } catch (...) {
+        }
+    }
+    return engines;
 }
 
 SoftwareBitmap bitmapFromImage(const QImage &image)
@@ -160,8 +207,8 @@ public:
         std::thread([this, capturedImage, hints]() {
             init_apartment(apartment_type::multi_threaded);
             try {
-                OcrEngine engine = createEngine(hints);
-                if (!engine) {
+                const auto engines = createEngines(hints);
+                if (engines.empty()) {
                     QMetaObject::invokeMethod(this, [this]() {
                         emit recognitionFinished(false,
                                                  QString(),
@@ -180,9 +227,22 @@ public:
                     return;
                 }
 
-                OcrResult result = engine.RecognizeAsync(bitmap).get();
-                const QString text = textFromResult(result);
-                if (text.isEmpty()) {
+                QString bestText;
+                int bestScore = -1;
+                for (const auto &candidate : engines) {
+                    OcrResult result = candidate.second.RecognizeAsync(bitmap).get();
+                    const QString text = textFromResult(result);
+                    if (text.isEmpty()) {
+                        continue;
+                    }
+                    const int score = scriptScore(text, candidate.first);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestText = text;
+                    }
+                }
+
+                if (bestText.isEmpty()) {
                     QMetaObject::invokeMethod(this, [this]() {
                         emit recognitionFinished(false,
                                                  QString(),
@@ -191,8 +251,8 @@ public:
                     return;
                 }
 
-                QMetaObject::invokeMethod(this, [this, text]() {
-                    emit recognitionFinished(true, text, QString());
+                QMetaObject::invokeMethod(this, [this, bestText]() {
+                    emit recognitionFinished(true, bestText, QString());
                 }, Qt::QueuedConnection);
             } catch (const winrt::hresult_error &error) {
                 const QString message = exceptionMessage(error);
@@ -265,20 +325,67 @@ function AwaitOperation($Operation, [Type]$ResultType) {
         throw "Could not await Windows Runtime OCR operation: $($_.Exception.Message)"
     }
 }
-$engine = $null
+function TextFromOcrResult($Result) {
+    $lines = @()
+    foreach ($line in $Result.Lines) {
+        if (-not [string]::IsNullOrWhiteSpace($line.Text)) {
+            $lines += $line.Text
+        }
+    }
+    return (($lines -join [Environment]::NewLine).Trim())
+}
+function GetScriptScore([string]$Text, [string]$LanguageTag) {
+    $cjk = 0
+    $kana = 0
+    $hangul = 0
+    $latin = 0
+    foreach ($ch in $Text.ToCharArray()) {
+        $code = [int][char]$ch
+        if (($code -ge 0x4E00 -and $code -le 0x9FFF) -or ($code -ge 0x3400 -and $code -le 0x4DBF)) {
+            $cjk++
+        } elseif (($code -ge 0x3040 -and $code -le 0x30FF) -or ($code -ge 0x31F0 -and $code -le 0x31FF)) {
+            $kana++
+        } elseif ($code -ge 0xAC00 -and $code -le 0xD7AF) {
+            $hangul++
+        } elseif (($code -ge 65 -and $code -le 90) -or ($code -ge 97 -and $code -le 122)) {
+            $latin++
+        }
+    }
+    $tag = $LanguageTag.ToLowerInvariant()
+    $score = $Text.Trim().Length
+    if ($tag.StartsWith('zh')) {
+        $score += $cjk * 8 + $latin
+    } elseif ($tag.StartsWith('ja')) {
+        $score += ($kana + $cjk) * 8 + $latin
+    } elseif ($tag.StartsWith('ko')) {
+        $score += $hangul * 8 + $latin
+    } elseif ($tag.StartsWith('en')) {
+        $score += $latin * 4
+    } else {
+        $score += $latin + $cjk + $kana + $hangul
+    }
+    return $score
+}
+$engineCandidates = @()
 foreach ($tag in $LanguageTags) {
     if ([string]::IsNullOrWhiteSpace($tag)) { continue }
     try {
         $language = [Windows.Globalization.Language]::new($tag)
         $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
-        if ($null -ne $engine) { break }
+        if ($null -ne $engine) {
+            $engineCandidates += [PSCustomObject]@{ Tag = $tag; Engine = $engine }
+        }
     } catch {
     }
 }
-if ($null -eq $engine) {
-    $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+try {
+    $userEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+    if ($null -ne $userEngine) {
+        $engineCandidates += [PSCustomObject]@{ Tag = 'user'; Engine = $userEngine }
+    }
+} catch {
 }
-if ($null -eq $engine) {
+if ($engineCandidates.Count -eq 0) {
     throw 'No Windows OCR language is available. Install OCR language features in Windows Settings.'
 }
 $ImagePath = [System.IO.Path]::GetFullPath($ImagePath)
@@ -286,18 +393,25 @@ $file = AwaitOperation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Ima
 $stream = AwaitOperation ($file.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
 $decoder = AwaitOperation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
 $bitmap = AwaitOperation ($decoder.GetSoftwareBitmapAsync([Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Premultiplied)) ([Windows.Graphics.Imaging.SoftwareBitmap])
-$result = AwaitOperation ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-$lines = @()
-foreach ($line in $result.Lines) {
-    if (-not [string]::IsNullOrWhiteSpace($line.Text)) {
-        $lines += $line.Text
+$bestText = ''
+$bestScore = -1
+foreach ($candidate in $engineCandidates) {
+    try {
+        $result = AwaitOperation ($candidate.Engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+        $text = TextFromOcrResult $result
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        $score = GetScriptScore $text $candidate.Tag
+        if ($score -gt $bestScore) {
+            $bestScore = $score
+            $bestText = $text
+        }
+    } catch {
     }
 }
-$text = ($lines -join [Environment]::NewLine).Trim()
-if ([string]::IsNullOrWhiteSpace($text)) {
+if ([string]::IsNullOrWhiteSpace($bestText)) {
     throw 'No text was recognized in the screenshot.'
 }
-Write-Output $text
+Write-Output $bestText
 )ps1");
 }
 
