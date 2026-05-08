@@ -36,6 +36,12 @@ QString en(const QString &key)
     if (key == "dialog.error.screen_capture_failed") return "Screenshot capture failed. Check Screen Recording permission.";
 
     if (key == "settings.title") return "Settings";
+    if (key == "settings.tab.general") return "General";
+    if (key == "settings.tab.services") return "Services";
+    if (key == "settings.tab.shortcuts") return "Shortcuts";
+    if (key == "settings.tab.advanced") return "Advanced";
+    if (key == "settings.tab.privacy") return "Privacy";
+    if (key == "settings.tab.about") return "About";
     if (key == "settings.group.app") return "Application";
     if (key == "settings.group.shortcuts") return "Shortcuts";
     if (key == "settings.group.services") return "Translation Services";
@@ -77,6 +83,9 @@ QString en(const QString &key)
     if (key == "settings.dictionary.enabled") return "Enable Youdao dictionary";
     if (key == "settings.dictionary.no_api") return "Youdao dictionary does not require an API key.";
     if (key == "settings.group.data") return "Cache and History";
+    if (key == "settings.group.cache") return "Cache";
+    if (key == "settings.group.history") return "History";
+    if (key == "settings.group.about") return "About";
     if (key == "settings.cache.enabled") return "Enable translation cache";
     if (key == "settings.cache.clear") return "Clear Cache";
     if (key == "settings.cache.export") return "Export Cache";
@@ -106,6 +115,8 @@ QString en(const QString &key)
     if (key == "settings.pairs.add") return "Add";
     if (key == "settings.pairs.edit") return "Edit Selected";
     if (key == "settings.pairs.remove") return "Remove";
+    if (key == "settings.about.version") return "Version %1";
+    if (key == "settings.about.description") return "A lightweight cross-platform translation tool.";
     if (key == "settings.save") return "Save";
     if (key == "settings.saved") return "Saved";
 
@@ -158,6 +169,12 @@ QString zhCN(const QString &key)
     if (key == "dialog.error.screen_capture_failed") return "截图失败，请检查“屏幕录制”权限。";
 
     if (key == "settings.title") return "设置";
+    if (key == "settings.tab.general") return "通用";
+    if (key == "settings.tab.services") return "服务";
+    if (key == "settings.tab.shortcuts") return "快捷键";
+    if (key == "settings.tab.advanced") return "高级";
+    if (key == "settings.tab.privacy") return "隐私";
+    if (key == "settings.tab.about") return "关于";
     if (key == "settings.group.app") return "应用";
     if (key == "settings.group.shortcuts") return "快捷键";
     if (key == "settings.group.services") return "翻译服务";
@@ -199,6 +216,9 @@ QString zhCN(const QString &key)
     if (key == "settings.dictionary.enabled") return "启用有道词典";
     if (key == "settings.dictionary.no_api") return "有道词典无需 API Key。";
     if (key == "settings.group.data") return "缓存与历史";
+    if (key == "settings.group.cache") return "缓存";
+    if (key == "settings.group.history") return "历史记录";
+    if (key == "settings.group.about") return "关于";
     if (key == "settings.cache.enabled") return "启用翻译缓存";
     if (key == "settings.cache.clear") return "清理缓存";
     if (key == "settings.cache.export") return "导出缓存";
@@ -228,6 +248,8 @@ QString zhCN(const QString &key)
     if (key == "settings.pairs.add") return "新增";
     if (key == "settings.pairs.edit") return "编辑当前";
     if (key == "settings.pairs.remove") return "删除";
+    if (key == "settings.about.version") return "版本 %1";
+    if (key == "settings.about.description") return "轻量的全平台翻译工具。";
     if (key == "settings.save") return "保存";
     if (key == "settings.saved") return "已保存";
 
@@ -280,6 +302,12 @@ QString zhTW(const QString &key)
     if (key == "dialog.error.screen_capture_failed") return "截圖失敗，請檢查「螢幕錄製」權限。";
 
     if (key == "settings.title") return "設定";
+    if (key == "settings.tab.general") return "通用";
+    if (key == "settings.tab.services") return "服務";
+    if (key == "settings.tab.shortcuts") return "快捷鍵";
+    if (key == "settings.tab.advanced") return "進階";
+    if (key == "settings.tab.privacy") return "隱私";
+    if (key == "settings.tab.about") return "關於";
     if (key == "settings.group.app") return "應用";
     if (key == "settings.group.shortcuts") return "快捷鍵";
     if (key == "settings.group.services") return "翻譯服務";
@@ -321,6 +349,9 @@ QString zhTW(const QString &key)
     if (key == "settings.dictionary.enabled") return "啟用有道詞典";
     if (key == "settings.dictionary.no_api") return "有道詞典無需 API Key。";
     if (key == "settings.group.data") return "快取與歷史";
+    if (key == "settings.group.cache") return "快取";
+    if (key == "settings.group.history") return "歷史記錄";
+    if (key == "settings.group.about") return "關於";
     if (key == "settings.cache.enabled") return "啟用翻譯快取";
     if (key == "settings.cache.clear") return "清理快取";
     if (key == "settings.cache.export") return "匯出快取";
@@ -350,6 +381,8 @@ QString zhTW(const QString &key)
     if (key == "settings.pairs.add") return "新增";
     if (key == "settings.pairs.edit") return "編輯目前";
     if (key == "settings.pairs.remove") return "刪除";
+    if (key == "settings.about.version") return "版本 %1";
+    if (key == "settings.about.description") return "輕量的全平台翻譯工具。";
     if (key == "settings.save") return "保存";
     if (key == "settings.saved") return "已保存";
 

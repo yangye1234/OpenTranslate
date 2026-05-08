@@ -22,6 +22,9 @@
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSet>
+#include <QSize>
+#include <QStackedWidget>
+#include <QStyle>
 #include <QToolButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -46,6 +49,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_dictionaryGroup(nullptr)
     , m_dictionaryEnabled(nullptr)
     , m_dataGroup(nullptr)
+    , m_historyGroup(nullptr)
     , m_lowerOnUnpin(nullptr)
     , m_cacheEnabled(nullptr)
     , m_historyEnabled(nullptr)
@@ -55,10 +59,17 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_importCacheButton(nullptr)
     , m_showHistoryButton(nullptr)
     , m_clearHistoryButton(nullptr)
-    , m_contentLayout(nullptr)
+    , m_pageStack(nullptr)
+    , m_tabButtons(nullptr)
+    , m_generalPageLayout(nullptr)
+    , m_servicesPageLayout(nullptr)
+    , m_shortcutsPageLayout(nullptr)
+    , m_advancedPageLayout(nullptr)
+    , m_privacyPageLayout(nullptr)
+    , m_aboutPageLayout(nullptr)
 {
     ui->setupUi(this);
-    setupScrollableSettingsUi();
+    setupCategorizedSettingsUi();
     setupLanguageOptions();
     createExtendedSettingsUi();
     applyLanguage(m_uiLanguage);
@@ -510,11 +521,9 @@ void SettingsWidget::createExtendedSettingsUi()
     m_serviceEnabledChecks.resize(4);
     m_serviceDetailWidgets.resize(4);
 
-    const int serviceIndex = m_contentLayout->indexOf(ui->baiduGroup);
-    m_contentLayout->insertWidget(serviceIndex < 0 ? 0 : serviceIndex, m_servicesGroup);
+    m_servicesPageLayout->addWidget(m_servicesGroup);
+    m_servicesPageLayout->addStretch(1);
 
-    m_contentLayout->removeWidget(ui->baiduGroup);
-    m_contentLayout->removeWidget(ui->genericGroup);
     ui->baiduEnabled->hide();
     ui->genericEnabled->hide();
 
@@ -673,17 +682,7 @@ void SettingsWidget::createExtendedSettingsUi()
     m_dataGroup = new QGroupBox(this);
     auto *dataLayout = new QVBoxLayout(m_dataGroup);
     m_cacheEnabled = new QCheckBox(m_dataGroup);
-    m_historyEnabled = new QCheckBox(m_dataGroup);
-    m_historyMaxEntries = new QLineEdit(m_dataGroup);
-    m_historyMaxEntries->setPlaceholderText("200");
     dataLayout->addWidget(m_cacheEnabled);
-    dataLayout->addWidget(m_historyEnabled);
-    auto *historyLimitLayout = new QHBoxLayout();
-    auto *historyLimitLabel = new QLabel(m_dataGroup);
-    historyLimitLabel->setObjectName("labelHistoryLimit");
-    historyLimitLayout->addWidget(historyLimitLabel);
-    historyLimitLayout->addWidget(m_historyMaxEntries);
-    dataLayout->addLayout(historyLimitLayout);
 
     auto *cacheButtons = new QHBoxLayout();
     m_clearCacheButton = new QPushButton(m_dataGroup);
@@ -693,14 +692,30 @@ void SettingsWidget::createExtendedSettingsUi()
     cacheButtons->addWidget(m_exportCacheButton);
     cacheButtons->addWidget(m_importCacheButton);
     dataLayout->addLayout(cacheButtons);
+    m_advancedPageLayout->addWidget(m_dataGroup);
+    m_advancedPageLayout->addStretch(1);
+
+    m_historyGroup = new QGroupBox(this);
+    auto *historyLayout = new QVBoxLayout(m_historyGroup);
+    m_historyEnabled = new QCheckBox(m_historyGroup);
+    m_historyMaxEntries = new QLineEdit(m_historyGroup);
+    m_historyMaxEntries->setPlaceholderText("200");
+    historyLayout->addWidget(m_historyEnabled);
+    auto *historyLimitLayout = new QHBoxLayout();
+    auto *historyLimitLabel = new QLabel(m_historyGroup);
+    historyLimitLabel->setObjectName("labelHistoryLimit");
+    historyLimitLayout->addWidget(historyLimitLabel);
+    historyLimitLayout->addWidget(m_historyMaxEntries);
+    historyLayout->addLayout(historyLimitLayout);
 
     auto *historyButtons = new QHBoxLayout();
-    m_showHistoryButton = new QPushButton(m_dataGroup);
-    m_clearHistoryButton = new QPushButton(m_dataGroup);
+    m_showHistoryButton = new QPushButton(m_historyGroup);
+    m_clearHistoryButton = new QPushButton(m_historyGroup);
     historyButtons->addWidget(m_showHistoryButton);
     historyButtons->addWidget(m_clearHistoryButton);
-    dataLayout->addLayout(historyButtons);
-    m_contentLayout->insertWidget(m_contentLayout->indexOf(ui->pairGroup), m_dataGroup);
+    historyLayout->addLayout(historyButtons);
+    m_privacyPageLayout->addWidget(m_historyGroup);
+    m_privacyPageLayout->addStretch(1);
 
     connect(m_clearCacheButton, &QPushButton::clicked, this, &SettingsWidget::onClearCacheClicked);
     connect(m_exportCacheButton, &QPushButton::clicked, this, &SettingsWidget::onExportCacheClicked);
@@ -709,35 +724,131 @@ void SettingsWidget::createExtendedSettingsUi()
     connect(m_clearHistoryButton, &QPushButton::clicked, this, &SettingsWidget::onClearHistoryClicked);
 }
 
-void SettingsWidget::setupScrollableSettingsUi()
+void SettingsWidget::setupCategorizedSettingsUi()
 {
-    setMinimumSize(560, 420);
-    resize(680, 720);
+    setMinimumSize(760, 520);
+    resize(900, 680);
 
+    auto *navFrame = new QFrame(this);
+    navFrame->setObjectName("settingsNavFrame");
+    auto *navLayout = new QHBoxLayout(navFrame);
+    navLayout->setContentsMargins(10, 8, 10, 8);
+    navLayout->setSpacing(8);
+
+    m_tabButtons = new QButtonGroup(navFrame);
+    m_tabButtons->setExclusive(true);
+
+    auto addNavButton = [this, navLayout](const QString &objectName, int index, QStyle::StandardPixmap icon) {
+        QToolButton *button = createTabButton(objectName, index, icon);
+        navLayout->addWidget(button);
+        return button;
+    };
+
+    addNavButton("settingsTabGeneral", 0, QStyle::SP_ComputerIcon);
+    addNavButton("settingsTabServices", 1, QStyle::SP_DriveNetIcon);
+    addNavButton("settingsTabShortcuts", 2, QStyle::SP_CommandLink);
+    addNavButton("settingsTabAdvanced", 3, QStyle::SP_FileDialogDetailedView);
+    addNavButton("settingsTabPrivacy", 4, QStyle::SP_DialogApplyButton);
+    addNavButton("settingsTabAbout", 5, QStyle::SP_MessageBoxInformation);
+    navLayout->addStretch(1);
+
+    m_pageStack = new QStackedWidget(this);
+    m_generalPageLayout = createSettingsPage("settingsPageGeneral");
+    m_servicesPageLayout = createSettingsPage("settingsPageServices");
+    m_shortcutsPageLayout = createSettingsPage("settingsPageShortcuts");
+    m_advancedPageLayout = createSettingsPage("settingsPageAdvanced");
+    m_privacyPageLayout = createSettingsPage("settingsPagePrivacy");
+    m_aboutPageLayout = createSettingsPage("settingsPageAbout");
+
+    ui->verticalLayout->removeWidget(ui->appGroup);
+    ui->verticalLayout->removeWidget(ui->shortcutsGroup);
+    ui->verticalLayout->removeWidget(ui->baiduGroup);
+    ui->verticalLayout->removeWidget(ui->genericGroup);
+    ui->verticalLayout->removeWidget(ui->pairGroup);
+
+    m_generalPageLayout->addWidget(ui->appGroup);
+    m_generalPageLayout->addWidget(ui->pairGroup);
+    m_generalPageLayout->addStretch(1);
+
+    m_shortcutsPageLayout->addWidget(ui->shortcutsGroup);
+    m_shortcutsPageLayout->addStretch(1);
+
+    auto *aboutGroup = new QGroupBox(this);
+    aboutGroup->setObjectName("aboutGroup");
+    auto *aboutLayout = new QVBoxLayout(aboutGroup);
+    aboutLayout->setContentsMargins(16, 16, 16, 16);
+    aboutLayout->setSpacing(10);
+
+    auto *iconLabel = new QLabel(aboutGroup);
+    iconLabel->setObjectName("aboutIconLabel");
+    iconLabel->setAlignment(Qt::AlignCenter);
+    iconLabel->setPixmap(QIcon(":/icons/assets/app-icon-1024.png").pixmap(96, 96));
+
+    auto *titleLabel = new QLabel("OpenTranslate", aboutGroup);
+    titleLabel->setObjectName("aboutTitleLabel");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("font-size: 20px; font-weight: 700;");
+
+    auto *versionLabel = new QLabel(aboutGroup);
+    versionLabel->setObjectName("aboutVersionLabel");
+    versionLabel->setAlignment(Qt::AlignCenter);
+
+    auto *descriptionLabel = new QLabel(aboutGroup);
+    descriptionLabel->setObjectName("aboutDescriptionLabel");
+    descriptionLabel->setAlignment(Qt::AlignCenter);
+    descriptionLabel->setWordWrap(true);
+
+    aboutLayout->addWidget(iconLabel);
+    aboutLayout->addWidget(titleLabel);
+    aboutLayout->addWidget(versionLabel);
+    aboutLayout->addWidget(descriptionLabel);
+    m_aboutPageLayout->addWidget(aboutGroup);
+    m_aboutPageLayout->addStretch(1);
+
+    ui->verticalLayout->insertWidget(0, navFrame);
+    ui->verticalLayout->insertWidget(1, m_pageStack, 1);
+
+    connect(m_tabButtons, &QButtonGroup::idClicked, m_pageStack, &QStackedWidget::setCurrentIndex);
+    if (auto *button = m_tabButtons->button(0)) {
+        button->setChecked(true);
+    }
+    m_pageStack->setCurrentIndex(0);
+}
+
+QVBoxLayout *SettingsWidget::createSettingsPage(const QString &objectName)
+{
     auto *scrollArea = new QScrollArea(this);
+    scrollArea->setObjectName(objectName + "ScrollArea");
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
 
     auto *content = new QWidget(scrollArea);
-    m_contentLayout = new QVBoxLayout(content);
-    m_contentLayout->setContentsMargins(0, 0, 0, 0);
-    m_contentLayout->setSpacing(ui->verticalLayout->spacing());
-
-    const QList<QWidget *> groups = {
-        ui->appGroup,
-        ui->shortcutsGroup,
-        ui->baiduGroup,
-        ui->genericGroup,
-        ui->pairGroup
-    };
-    for (QWidget *group : groups) {
-        ui->verticalLayout->removeWidget(group);
-        m_contentLayout->addWidget(group);
-    }
-    m_contentLayout->addStretch(1);
+    content->setObjectName(objectName);
+    auto *layout = new QVBoxLayout(content);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(ui->verticalLayout->spacing());
 
     scrollArea->setWidget(content);
-    ui->verticalLayout->insertWidget(0, scrollArea, 1);
+    m_pageStack->addWidget(scrollArea);
+    return layout;
+}
+
+QToolButton *SettingsWidget::createTabButton(const QString &objectName, int index, QStyle::StandardPixmap icon)
+{
+    auto *button = new QToolButton(this);
+    button->setObjectName(objectName);
+    button->setCheckable(true);
+    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    button->setIcon(style()->standardIcon(icon));
+    button->setIconSize(QSize(28, 28));
+    button->setMinimumSize(96, 72);
+    button->setAutoRaise(false);
+    button->setStyleSheet(
+        "QToolButton { border: 1px solid transparent; border-radius: 8px; padding: 6px; }"
+        "QToolButton:checked { border-color: #0A84FF; color: #0A84FF; background: rgba(10, 132, 255, 0.10); }");
+    m_tabButtons->addButton(button, index);
+    m_tabNavButtons.append(button);
+    return button;
 }
 
 void SettingsWidget::refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair)
@@ -771,6 +882,19 @@ void SettingsWidget::updateDefaultPairOptions(const QString &selected)
 void SettingsWidget::applyLanguage(AppLanguage language)
 {
     setWindowTitle(L10n::text(language, "settings.title"));
+    auto setTabText = [this, language](const QString &objectName, const QString &key) {
+        if (auto *button = findChild<QToolButton *>(objectName)) {
+            button->setText(L10n::text(language, key));
+            button->setToolTip(L10n::text(language, key));
+        }
+    };
+    setTabText("settingsTabGeneral", "settings.tab.general");
+    setTabText("settingsTabServices", "settings.tab.services");
+    setTabText("settingsTabShortcuts", "settings.tab.shortcuts");
+    setTabText("settingsTabAdvanced", "settings.tab.advanced");
+    setTabText("settingsTabPrivacy", "settings.tab.privacy");
+    setTabText("settingsTabAbout", "settings.tab.about");
+
     ui->appGroup->setTitle(L10n::text(language, "settings.group.app"));
     ui->labelAppLanguage->setText(L10n::text(language, "settings.label.app_language"));
     if (auto *label = findChild<QLabel *>("labelTargets")) {
@@ -845,7 +969,8 @@ void SettingsWidget::applyLanguage(AppLanguage language)
         label->setText(L10n::text(language, "settings.dictionary.no_api"));
     }
 
-    m_dataGroup->setTitle(L10n::text(language, "settings.group.data"));
+    m_dataGroup->setTitle(L10n::text(language, "settings.group.cache"));
+    m_historyGroup->setTitle(L10n::text(language, "settings.group.history"));
     m_lowerOnUnpin->setText(L10n::text(language, "settings.window.lower_on_unpin"));
     m_cacheEnabled->setText(L10n::text(language, "settings.cache.enabled"));
     m_historyEnabled->setText(L10n::text(language, "settings.history.enabled"));
@@ -863,6 +988,16 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     ui->addPairButton->setText(L10n::text(language, "settings.pairs.add"));
     ui->editPairButton->setText(L10n::text(language, "settings.pairs.edit"));
     ui->removePairButton->setText(L10n::text(language, "settings.pairs.remove"));
+
+    if (auto *aboutGroup = findChild<QGroupBox *>("aboutGroup")) {
+        aboutGroup->setTitle(L10n::text(language, "settings.group.about"));
+    }
+    if (auto *versionLabel = findChild<QLabel *>("aboutVersionLabel")) {
+        versionLabel->setText(L10n::text(language, "settings.about.version").arg("0.1"));
+    }
+    if (auto *descriptionLabel = findChild<QLabel *>("aboutDescriptionLabel")) {
+        descriptionLabel->setText(L10n::text(language, "settings.about.description"));
+    }
 
     updateSaveButtonText();
 }

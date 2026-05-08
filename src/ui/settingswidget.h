@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QVector>
+#include <QStyle>
 
 #include "appconfig.h"
 
@@ -13,6 +14,8 @@ class QGroupBox;
 class QKeySequenceEdit;
 class QLineEdit;
 class QPushButton;
+class QStackedWidget;
+class QToolButton;
 class QVBoxLayout;
 
 QT_BEGIN_NAMESPACE
@@ -54,7 +57,9 @@ private:
     void refreshPairList(const QStringList &pairs);
     QStringList currentPairs() const;
     void createExtendedSettingsUi();
-    void setupScrollableSettingsUi();
+    void setupCategorizedSettingsUi();
+    QVBoxLayout *createSettingsPage(const QString &objectName);
+    QToolButton *createTabButton(const QString &objectName, int index, QStyle::StandardPixmap icon);
     void refreshLanguagePairs(const QStringList &pairs, const QString &defaultPair);
     void updateDefaultPairOptions(const QString &selected);
     void toggleServiceDetails(ProviderType provider);
@@ -89,6 +94,7 @@ private:
     QGroupBox *m_dictionaryGroup;
     QCheckBox *m_dictionaryEnabled;
     QGroupBox *m_dataGroup;
+    QGroupBox *m_historyGroup;
     QCheckBox *m_lowerOnUnpin;
     QCheckBox *m_cacheEnabled;
     QCheckBox *m_historyEnabled;
@@ -98,7 +104,15 @@ private:
     QPushButton *m_importCacheButton;
     QPushButton *m_showHistoryButton;
     QPushButton *m_clearHistoryButton;
-    QVBoxLayout *m_contentLayout;
+    QStackedWidget *m_pageStack;
+    QButtonGroup *m_tabButtons;
+    QVector<QToolButton *> m_tabNavButtons;
+    QVBoxLayout *m_generalPageLayout;
+    QVBoxLayout *m_servicesPageLayout;
+    QVBoxLayout *m_shortcutsPageLayout;
+    QVBoxLayout *m_advancedPageLayout;
+    QVBoxLayout *m_privacyPageLayout;
+    QVBoxLayout *m_aboutPageLayout;
 };
 
 #endif // SETTINGSWIDGET_H
