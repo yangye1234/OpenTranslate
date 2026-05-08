@@ -1,12 +1,11 @@
 #include "speechplayer.h"
+#include "tempfilemanager.h"
 
 #include <QCryptographicHash>
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
 #include <QtGlobal>
@@ -201,13 +200,16 @@ void SpeechPlayer::playAudioUrl(const QString &audioUrl)
             return;
         }
 
-        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-        if (tempDir.isEmpty()) {
-            tempDir = QDir::tempPath();
-        }
         const QByteArray hash = QCryptographicHash::hash(audioUrl.toUtf8(), QCryptographicHash::Md5).toHex();
         const QString suffix = audioFileSuffix(audioUrl, contentType);
-        const QString filePath = QDir(tempDir).filePath("opentranslate_audio_" + QString::fromLatin1(hash) + suffix);
+        const QString filePath = TempFileManager::filePath(QStringLiteral("opentranslate_audio_")
+                                                               + QString::fromLatin1(hash)
+                                                               + QStringLiteral("_"),
+                                                           suffix);
+        if (filePath.isEmpty()) {
+            emit errorOccurred("Could not prepare temporary audio file.");
+            return;
+        }
 
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {

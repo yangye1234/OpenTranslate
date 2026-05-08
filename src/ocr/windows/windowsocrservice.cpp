@@ -1,4 +1,5 @@
 #include "ocrservice.h"
+#include "tempfilemanager.h"
 
 #include <QBuffer>
 #include <QByteArray>
@@ -7,9 +8,7 @@
 #include <QImage>
 #include <QMetaObject>
 #include <QProcess>
-#include <QStandardPaths>
 #include <QStringList>
-#include <QUuid>
 
 #if defined(OPENTRANSLATE_HAS_CPPWINRT)
 #include <thread>
@@ -317,12 +316,7 @@ QStringList windowsOcrLanguageTags(const QStringList &languageHints)
 
 QString createTempFilePath(const QString &suffix)
 {
-    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    if (tempDir.isEmpty()) {
-        tempDir = QDir::tempPath();
-    }
-    return QDir(tempDir).filePath(QStringLiteral("opentranslate_ocr_%1%2")
-                                      .arg(QUuid::createUuid().toString(QUuid::WithoutBraces), suffix));
+    return TempFileManager::filePath(QStringLiteral("opentranslate_ocr_"), suffix);
 }
 
 class WindowsOcrService : public OcrService
@@ -342,6 +336,10 @@ public:
 
         const QString imagePath = createTempFilePath(QStringLiteral(".png"));
         const QString scriptPath = createTempFilePath(QStringLiteral(".ps1"));
+        if (imagePath.isEmpty() || scriptPath.isEmpty()) {
+            emit recognitionFinished(false, QString(), QStringLiteral("Failed to prepare Windows OCR temporary files."));
+            return;
+        }
         if (!image.save(imagePath, "PNG")) {
             emit recognitionFinished(false, QString(), QStringLiteral("Failed to prepare screenshot for Windows OCR."));
             return;
