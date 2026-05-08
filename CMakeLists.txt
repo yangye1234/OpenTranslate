@@ -6,7 +6,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
     set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
 endif()
 
-project(OpenTranslate VERSION 0.1 LANGUAGES CXX)
+project(OpenTranslate VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -112,6 +112,7 @@ endif()
 
 target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network QHotkey::QHotkey)
 target_include_directories(OpenTranslate PRIVATE ${PROJECT_INCLUDE_DIRS})
+target_compile_definitions(OpenTranslate PRIVATE OPENTRANSLATE_VERSION="${PROJECT_VERSION}")
 
 if(WIN32)
     target_sources(OpenTranslate PRIVATE src/ocr/windows/windowsocrservice.cpp)

@@ -779,7 +779,7 @@ void SettingsWidget::setupCategorizedSettingsUi()
     auto *iconLabel = new QLabel(aboutGroup);
     iconLabel->setObjectName("aboutIconLabel");
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setPixmap(QIcon(":/icons/assets/app-icon-1024.png").pixmap(96, 96));
+    iconLabel->setPixmap(QIcon(":/icons/assets/app-icon2.png").pixmap(96, 96));
 
     auto *titleLabel = new QLabel("OpenTranslate", aboutGroup);
     titleLabel->setObjectName("aboutTitleLabel");
@@ -989,7 +989,7 @@ void SettingsWidget::applyLanguage(AppLanguage language)
         aboutGroup->setTitle(L10n::text(language, "settings.group.about"));
     }
     if (auto *versionLabel = findChild<QLabel *>("aboutVersionLabel")) {
-        versionLabel->setText(L10n::text(language, "settings.about.version").arg("0.1"));
+        versionLabel->setText(L10n::text(language, "settings.about.version").arg(OPENTRANSLATE_VERSION));
     }
     if (auto *descriptionLabel = findChild<QLabel *>("aboutDescriptionLabel")) {
         descriptionLabel->setText(L10n::text(language, "settings.about.description"));

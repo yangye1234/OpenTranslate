@@ -11,7 +11,7 @@ cd /Users/yy/code/qt/QtCpp/OpenTranslate
 ## 1. 图标准备
 
 1. 放置源图：
-- `assets/app-icon-1024.png`
+- `assets/app-icon2.png`
 2. 生成系统图标：
 
 ```bash

@@ -2,51 +2,60 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A lightweight Qt Widgets translator focused on quick keyboard flow, global shortcuts, and local JSON cache for offline hits.
+OpenTranslate is a lightweight cross-platform Qt Widgets translator for quick translation, selection translation, screenshot OCR, provider-based audio playback, cache, and history.
 
-![OpenTranslate Icon](assets/app-icon-1024.png)
+![OpenTranslate Icon](assets/app-icon2.png)
+
+Current version: `0.2`
 
 ## Features
 
-- Frameless floating `Dialog` window with drag, pin-to-top, and fast translate flow
-- Dedicated `Settings` window with:
-- Baidu API config (`AppID`, `AppKey`, `enabled`)
-- Generic LLM API config (`base_url`, `model`, `api_key`, `prompt`) saved only in V1
-- Editable language pairs (`src->dst`)
-- App language switch: English / 简体中文 / 繁體中文
-- Configurable global shortcuts with persistence
-- `Enter` in source input triggers translation only
-- Result auto-focus + `selectAll()` for quick copy
-- JSON cache-first strategy:
-- Check cache first and skip API call on hit
-- Write back cache after successful online translation
-- If online fails, try cached fallback for offline reuse
-
-## Providers (V1)
-
-- `Baidu`: implemented and available
-- `Generic API`: configuration only, not called in V1
+- Frameless floating translation window with drag, pin-to-top, compact controls, and fast keyboard flow.
+- Language direction selector with `Auto` plus editable bidirectional pairs such as `zh <> en` and `ja <> zh`.
+- Automatic source language detection and target language resolution from the selected language pair.
+- Translation providers:
+  - Baidu Translate
+  - OpenAI-compatible Chat API
+  - DeepL API
+  - Youdao Dictionary, no API key required
+- Provider audio playback when available, including Youdao dictionary audio and Baidu TTS URL support.
+- Configurable global shortcuts:
+  - Cycle language selection
+  - Toggle always-on-top
+  - Open settings
+  - Translate selected text
+  - Play / pause audio
+  - Screenshot translate
+- Selection translation using clipboard copy/restore flow.
+- Screenshot translation:
+  - macOS: Apple Vision OCR
+  - Windows: Windows OCR when C++/WinRT headers are available, otherwise build-safe OCR stub
+- Translation cache with enable/clear/import/export controls.
+- Translation history with view/copy/clear controls and max-entry limit.
+- Categorized settings UI for General, Services, Shortcuts, Privacy, and About.
+- App language: English / 简体中文 / 繁體中文.
 
 ## Default Shortcuts
 
-- macOS:
-- Swap language: `Ctrl+Command+T`
-- Toggle on-top: `Ctrl+Command+F`
+macOS:
+
+- Cycle language selection: `Ctrl+Command+T`
+- Toggle always-on-top: `Ctrl+Command+F`
 - Open settings: `Ctrl+,`
-- Windows:
-- Swap language: `Ctrl+Alt+T`
-- Toggle on-top: `Ctrl+Alt+F`
+- Translate selection: `Ctrl+Command+D`
+- Play / pause audio: `Ctrl+Command+Space`
+- Screenshot translate: `Ctrl+Command+A`
+
+Windows:
+
+- Cycle language selection: `Ctrl+Alt+T`
+- Toggle always-on-top: `Ctrl+Alt+F`
 - Open settings: `Ctrl+Alt+,`
+- Translate selection: `Ctrl+Alt+D`
+- Play / pause audio: `Ctrl+Alt+Space`
+- Screenshot translate: `Ctrl+Alt+A`
 
-All shortcuts can be edited in settings and take effect immediately after save.
-
-## Cache
-
-- File: `QStandardPaths::AppDataLocation/translations_cache.json`
-- Format: bidirectional objects (single entry supports both A<->B lookups)
-- Match key: `provider + from + to + source_norm`
-- `source_norm` uses `toCaseFolded()` for case-insensitive matching
-- Old one-way cache format is auto-migrated on startup
+Shortcuts can be edited in settings and take effect after saving.
 
 ## Build
 
@@ -63,49 +72,42 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
 ```
 
+macOS local debug build used during development:
+
+```bash
+cmake --build /Users/yy/code/qt/QtCpp/OpenTranslate/build/Qt_6_10_1_for_macOS-Debug --target all
+```
+
 ## Packaging
 
-See [PACKAGING.md](PACKAGING.md) for:
+See [PACKAGING.md](PACKAGING.md) for macOS and Windows packaging notes.
 
-- app icon generation from `assets/app-icon-1024.png`
-- macOS `.app` / `.dmg`
-- Windows `.exe` / NSIS installer
+App icons are generated from `assets/app-icon2.png`:
 
-## Configuration Persistence
+```bash
+./scripts/generate_app_icons.sh assets/app-icon2.png
+```
 
-Stored via `QSettings`:
+The generator adds transparent padding for platform icons so Dock/taskbar sizing looks closer to native apps.
 
-- Baidu and Generic API settings
-- Language pairs
+## Configuration And Data
+
+Stored through `QSettings` and local JSON files:
+
+- Provider settings and active provider
+- Language pairs and default pair
 - App language
 - Global shortcuts
+- Window behavior
+- Cache and history preferences
 
-## Project Structure
+Cache file:
 
-```text
-OpenTranslate/
-├─ main.cpp
-├─ translate.*                 # main dialog and translate flow
-├─ settingswidget.*            # settings window
-├─ baidutranslatorservice.*    # baidu translator implementation
-├─ translationcachestore.*     # bidirectional JSON cache
-├─ configstore.*               # QSettings load/save
-├─ appconfig.h                 # config models
-├─ l10n.*                      # i18n (en/zh-CN/zh-TW)
-├─ scripts/generate_app_icons.sh
-└─ PACKAGING.md
-```
+- `QStandardPaths::AppDataLocation/translations_cache.json`
 
 ## Notes
 
-- Global shortcuts may be affected by system permissions/input-source environment (especially on macOS)
-- If shortcuts do not trigger on first run in macOS, grant Accessibility permission to the app
-- Offline behavior is cache-based only (no local model inference in V1)
-
-## Roadmap
-
-- V1.1: connect Generic API real requests
-- V1.2: cache management (clean/import/export/switch)
-- V1.3: more providers (OpenAI/DeepL/etc.)
-
-Issues and PRs are welcome.
+- macOS selection translation requires Accessibility permission.
+- macOS screenshot translation requires Screen Recording permission.
+- Windows screenshot OCR requires Windows SDK C++/WinRT headers at build time; if unavailable, OCR is disabled but the app still builds.
+- Offline behavior is cache-based only.
