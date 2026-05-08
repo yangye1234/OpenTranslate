@@ -34,6 +34,15 @@ QString en(const QString &key)
     if (key == "dialog.error.ocr_empty") return "No text was recognized in the screenshot.";
     if (key == "dialog.error.screen_recording_permission") return "Grant Screen Recording permission in System Settings, then restart OpenTranslate and try screenshot translate again.";
     if (key == "dialog.error.screen_capture_failed") return "Screenshot capture failed. Check Screen Recording permission.";
+    if (key == "dialog.dictionary.title") return "Dictionary Info";
+    if (key == "dialog.dictionary.loading") return "Loading dictionary info...";
+    if (key == "dialog.dictionary.empty") return "No dictionary info.";
+    if (key == "dialog.dictionary.play_audio") return "Play dictionary audio";
+    if (key == "dialog.dictionary.section.phonetics") return "Pronunciation";
+    if (key == "dialog.dictionary.section.definitions") return "Definitions";
+    if (key == "dialog.dictionary.section.forms") return "Word Forms";
+    if (key == "dialog.dictionary.section.usage") return "Usage";
+    if (key == "dialog.dictionary.section.tags") return "Tags";
 
     if (key == "settings.title") return "Settings";
     if (key == "settings.tab.general") return "General";
@@ -167,6 +176,15 @@ QString zhCN(const QString &key)
     if (key == "dialog.error.ocr_empty") return "截图中未识别到文字。";
     if (key == "dialog.error.screen_recording_permission") return "请在系统设置中授予“屏幕录制”权限，然后重启 OpenTranslate 再使用截图翻译。";
     if (key == "dialog.error.screen_capture_failed") return "截图失败，请检查“屏幕录制”权限。";
+    if (key == "dialog.dictionary.title") return "词典信息";
+    if (key == "dialog.dictionary.loading") return "正在加载词典信息...";
+    if (key == "dialog.dictionary.empty") return "暂无词典信息。";
+    if (key == "dialog.dictionary.play_audio") return "播放词典发音";
+    if (key == "dialog.dictionary.section.phonetics") return "发音";
+    if (key == "dialog.dictionary.section.definitions") return "释义";
+    if (key == "dialog.dictionary.section.forms") return "词形";
+    if (key == "dialog.dictionary.section.usage") return "用法";
+    if (key == "dialog.dictionary.section.tags") return "标签";
 
     if (key == "settings.title") return "设置";
     if (key == "settings.tab.general") return "通用";
@@ -300,6 +318,15 @@ QString zhTW(const QString &key)
     if (key == "dialog.error.ocr_empty") return "截圖中未識別到文字。";
     if (key == "dialog.error.screen_recording_permission") return "請在系統設定中授予「螢幕錄製」權限，然後重啟 OpenTranslate 再使用截圖翻譯。";
     if (key == "dialog.error.screen_capture_failed") return "截圖失敗，請檢查「螢幕錄製」權限。";
+    if (key == "dialog.dictionary.title") return "詞典資訊";
+    if (key == "dialog.dictionary.loading") return "正在載入詞典資訊...";
+    if (key == "dialog.dictionary.empty") return "暫無詞典資訊。";
+    if (key == "dialog.dictionary.play_audio") return "播放詞典發音";
+    if (key == "dialog.dictionary.section.phonetics") return "發音";
+    if (key == "dialog.dictionary.section.definitions") return "釋義";
+    if (key == "dialog.dictionary.section.forms") return "詞形";
+    if (key == "dialog.dictionary.section.usage") return "用法";
+    if (key == "dialog.dictionary.section.tags") return "標籤";
 
     if (key == "settings.title") return "設定";
     if (key == "settings.tab.general") return "通用";
