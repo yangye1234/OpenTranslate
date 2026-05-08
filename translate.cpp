@@ -148,7 +148,6 @@ Translate::Translate(QWidget *parent)
     , m_selectionHotkey(nullptr)
     , m_speechHotkey(nullptr)
     , m_screenshotHotkey(nullptr)
-    , m_isCapturingScreenshot(false)
     , m_isTranslating(false)
 {
     ui->setupUi(this);
@@ -561,41 +560,24 @@ void Translate::translateSelection()
 
 void Translate::screenshotTranslate()
 {
-    if (m_isCapturingScreenshot) {
-        return;
-    }
-    m_isCapturingScreenshot = true;
-    hide();
-
-    QTimer::singleShot(120, this, [this]() {
-        auto *overlay = new ScreenshotOverlay();
-        connect(overlay, &ScreenshotOverlay::captureFinished, this, [this](const QImage &image) {
-            m_isCapturingScreenshot = false;
-            show();
-            activateWindow();
-            raise();
-            ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
-            ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.ocr"));
-            m_ocrService->recognizeText(image, ocrLanguageHints());
-        });
-        connect(overlay, &ScreenshotOverlay::captureFailed, this, [this](const QString &message) {
-            m_isCapturingScreenshot = false;
-            show();
-            activateWindow();
-            raise();
-            ui->Translation->setText(message.startsWith("dialog.")
-                                         ? L10n::text(m_config.appLanguage, message)
-                                         : message);
-        });
-        connect(overlay, &ScreenshotOverlay::captureCancelled, this, [this]() {
-            m_isCapturingScreenshot = false;
-            show();
-            activateWindow();
-            raise();
-            ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
-        });
-        overlay->begin();
+    auto *overlay = new ScreenshotOverlay();
+    connect(overlay, &ScreenshotOverlay::captureFinished, this, [this](const QImage &image) {
+        show();
+        activateWindow();
+        raise();
+        ui->OriginalText->setFocus(Qt::ShortcutFocusReason);
+        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.status.ocr"));
+        m_ocrService->recognizeText(image, ocrLanguageHints());
     });
+    connect(overlay, &ScreenshotOverlay::captureFailed, this, [this](const QString &message) {
+        show();
+        activateWindow();
+        raise();
+        ui->Translation->setText(message.startsWith("dialog.")
+                                     ? L10n::text(m_config.appLanguage, message)
+                                     : message);
+    });
+    overlay->begin();
 }
 
 void Translate::onOcrFinished(bool success, const QString &text, const QString &errorMessage)

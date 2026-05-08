@@ -83,7 +83,6 @@ private:
     QHotkey *m_selectionHotkey;
     QHotkey *m_speechHotkey;
     QHotkey *m_screenshotHotkey;
-    bool m_isCapturingScreenshot;
     bool m_isTranslating;
     QString m_hotkeyStatusMessage;
     TranslationCacheStore m_translationCache;
