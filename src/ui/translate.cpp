@@ -529,17 +529,14 @@ bool Translate::parseLanguagePair(const QString &pair, QString &from, QString &t
 
 void Translate::swapLanguagePair()
 {
-    QString from;
-    QString to;
-    if (!parseLanguagePair(selectedLanguagePair(), from, to)) {
+    const int count = ui->SelectLanguage->count();
+    if (count <= 1) {
         return;
     }
-    const QString reversed = to + " <> " + from;
-    const QString canonical = from < to ? from + " <> " + to : to + " <> " + from;
-    int index = ui->SelectLanguage->findText(canonical);
-    if (index >= 0) {
-        ui->SelectLanguage->setCurrentIndex(index);
-    }
+
+    const int currentIndex = ui->SelectLanguage->currentIndex();
+    const int nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % count;
+    ui->SelectLanguage->setCurrentIndex(nextIndex);
 }
 
 void Translate::toggleSpeech()
