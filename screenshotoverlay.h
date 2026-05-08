@@ -1,7 +1,7 @@
 #ifndef SCREENSHOTOVERLAY_H
 #define SCREENSHOTOVERLAY_H
 
-#include <QPixmap>
+#include <QImage>
 #include <QWidget>
 
 class QScreen;
@@ -29,11 +29,12 @@ protected:
 
 private:
     QRect normalizedSelection() const;
-    QImage croppedSelection() const;
+    QRect imageRectForSelection(const QRect &selection) const;
     QImage captureSelection(const QRect &selection) const;
 
     QScreen *m_screen;
-    QPixmap m_screenPixmap;
+    QImage m_screenImage;
+    qreal m_devicePixelRatio;
     QPoint m_startPos;
     QPoint m_currentPos;
     bool m_selecting;
