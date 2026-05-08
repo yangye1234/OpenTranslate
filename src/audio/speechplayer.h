@@ -31,6 +31,7 @@ private:
     QNetworkAccessManager m_network;
     QProcess m_process;
     bool m_isPlaying;
+    bool m_stopRequested;
 };
 
 #endif // SPEECHPLAYER_H

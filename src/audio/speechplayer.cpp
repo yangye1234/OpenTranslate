@@ -45,21 +45,64 @@ QString youdaoTtsUrl(const QString &text, const QString &language)
     }
     return url;
 }
+
+QString audioFileSuffix(const QString &audioUrl, const QString &contentType)
+{
+    const QString type = contentType.toLower();
+    if (type.contains("mpeg") || type.contains("mp3")) {
+        return QStringLiteral(".mp3");
+    }
+    if (type.contains("wav") || type.contains("wave")) {
+        return QStringLiteral(".wav");
+    }
+    if (type.contains("aac")) {
+        return QStringLiteral(".aac");
+    }
+    if (type.contains("mp4") || type.contains("m4a")) {
+        return QStringLiteral(".m4a");
+    }
+
+    const QString path = QUrl(audioUrl).path().toLower();
+    if (path.endsWith(".mp3")) {
+        return QStringLiteral(".mp3");
+    }
+    if (path.endsWith(".wav")) {
+        return QStringLiteral(".wav");
+    }
+    if (path.endsWith(".aac")) {
+        return QStringLiteral(".aac");
+    }
+    if (path.endsWith(".m4a") || path.endsWith(".mp4")) {
+        return QStringLiteral(".m4a");
+    }
+    return QStringLiteral(".mp3");
+}
 }
 
 SpeechPlayer::SpeechPlayer(QObject *parent)
     : QObject(parent)
     , m_isPlaying(false)
+    , m_stopRequested(false)
 {
     connect(&m_process,
             qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
             this,
-            [this](int, QProcess::ExitStatus) {
+            [this](int exitCode, QProcess::ExitStatus exitStatus) {
                 setPlaying(false);
+                if (!m_stopRequested && (exitStatus != QProcess::NormalExit || exitCode != 0)) {
+                    QString detail = QString::fromLocal8Bit(m_process.readAllStandardError()).trimmed();
+                    if (detail.isEmpty()) {
+                        detail = QString::fromLocal8Bit(m_process.readAllStandardOutput()).trimmed();
+                    }
+                    emit errorOccurred(detail.isEmpty() ? QStringLiteral("Audio playback failed.") : detail);
+                }
+                m_stopRequested = false;
             });
     connect(&m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         setPlaying(false);
-        emit errorOccurred(m_process.errorString());
+        if (!m_stopRequested) {
+            emit errorOccurred(m_process.errorString());
+        }
     });
 }
 
@@ -71,14 +114,15 @@ bool SpeechPlayer::isPlaying() const
 void SpeechPlayer::play(const QString &text, const QString &language, const QString &audioUrl)
 {
     const QString trimmed = text.trimmed();
-    if (trimmed.isEmpty()) {
+    const QString trimmedAudioUrl = audioUrl.trimmed();
+    if (trimmed.isEmpty() && trimmedAudioUrl.isEmpty()) {
         return;
     }
 
     stop();
 
-    if (!audioUrl.trimmed().isEmpty()) {
-        playAudioUrl(audioUrl.trimmed());
+    if (!trimmedAudioUrl.isEmpty()) {
+        playAudioUrl(trimmedAudioUrl);
         return;
     }
 
@@ -113,6 +157,7 @@ void SpeechPlayer::playAudioUrl(const QString &audioUrl)
         const QByteArray payload = reply->readAll();
         const QNetworkReply::NetworkError networkError = reply->error();
         const QString networkErrorString = reply->errorString();
+        const QString contentType = reply->header(QNetworkRequest::ContentTypeHeader).toString();
         reply->deleteLater();
 
         if (networkError != QNetworkReply::NoError || payload.isEmpty()) {
@@ -125,7 +170,7 @@ void SpeechPlayer::playAudioUrl(const QString &audioUrl)
             tempDir = QDir::tempPath();
         }
         const QByteArray hash = QCryptographicHash::hash(audioUrl.toUtf8(), QCryptographicHash::Md5).toHex();
-        const QString suffix = audioUrl.contains(".mp3", Qt::CaseInsensitive) ? ".mp3" : ".audio";
+        const QString suffix = audioFileSuffix(audioUrl, contentType);
         const QString filePath = QDir(tempDir).filePath("opentranslate_audio_" + QString::fromLatin1(hash) + suffix);
 
         QFile file(filePath);
@@ -141,20 +186,25 @@ void SpeechPlayer::playAudioUrl(const QString &audioUrl)
 
 void SpeechPlayer::playLocalFile(const QString &filePath)
 {
+    m_stopRequested = false;
 #if defined(Q_OS_MACOS)
     m_process.start("afplay", {filePath});
 #elif defined(Q_OS_WIN)
-    QString windowsPath = filePath;
-    windowsPath.replace("\\", "/").replace("'", "''");
+    const QString fileUri = QUrl::fromLocalFile(filePath).toString();
     const QString script = QString(
+        "$ErrorActionPreference = 'Stop'; "
         "Add-Type -AssemblyName PresentationCore; "
         "$p = New-Object System.Windows.Media.MediaPlayer; "
-        "$p.Open([Uri](%1)); "
+        "$p.Open([Uri]::new($args[0])); "
+        "$openDeadline = (Get-Date).AddSeconds(10); "
+        "while (-not $p.NaturalDuration.HasTimeSpan -and (Get-Date) -lt $openDeadline) { Start-Sleep -Milliseconds 100 }; "
+        "if (-not $p.NaturalDuration.HasTimeSpan) { $p.Close(); Write-Error 'Audio file could not be opened.'; exit 2 }; "
         "$p.Play(); "
-        "Start-Sleep -Milliseconds 300; "
-        "while ($p.NaturalDuration.HasTimeSpan -and $p.Position -lt $p.NaturalDuration.TimeSpan) { Start-Sleep -Milliseconds 100 };")
-        .arg(QString("'file:///%1'").arg(windowsPath));
-    m_process.start("powershell", {"-NoProfile", "-Command", script});
+        "$duration = $p.NaturalDuration.TimeSpan; "
+        "$playDeadline = (Get-Date).Add($duration).AddSeconds(2); "
+        "while ($p.Position -lt $duration -and (Get-Date) -lt $playDeadline) { Start-Sleep -Milliseconds 100 }; "
+        "$p.Close();");
+    m_process.start("powershell", {"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script, fileUri});
 #else
     Q_UNUSED(filePath);
     emit errorOccurred("Audio playback is not supported on this platform yet.");
@@ -177,6 +227,7 @@ bool SpeechPlayer::canUseDictionaryFallback(const QString &text, const QString &
 void SpeechPlayer::stop()
 {
     if (m_process.state() != QProcess::NotRunning) {
+        m_stopRequested = true;
         m_process.kill();
         m_process.waitForFinished(500);
     }
