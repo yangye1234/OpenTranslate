@@ -24,44 +24,44 @@
 #endif
 
 namespace {
-QString windowsLanguageTag(const QString &language)
+QStringList windowsLanguageTagsForHint(const QString &language)
 {
     const QString code = language.trimmed().toLower();
     if (code.isEmpty() || code == "auto") {
         return {};
     }
     if (code == "zh" || code == "zh-cn" || code == "zh-hans") {
-        return QStringLiteral("zh-Hans");
+        return {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans")};
     }
     if (code == "zh-tw" || code == "zh-hant" || code == "cht") {
-        return QStringLiteral("zh-Hant");
+        return {QStringLiteral("zh-Hant-TW"), QStringLiteral("zh-TW"), QStringLiteral("zh-Hant")};
     }
     if (code == "en") {
-        return QStringLiteral("en-US");
+        return {QStringLiteral("en-US"), QStringLiteral("en")};
     }
     if (code == "ja" || code == "jp") {
-        return QStringLiteral("ja-JP");
+        return {QStringLiteral("ja-JP"), QStringLiteral("ja")};
     }
     if (code == "ko" || code == "kor") {
-        return QStringLiteral("ko-KR");
+        return {QStringLiteral("ko-KR"), QStringLiteral("ko")};
     }
     if (code == "fr" || code == "fra") {
-        return QStringLiteral("fr-FR");
+        return {QStringLiteral("fr-FR"), QStringLiteral("fr")};
     }
     if (code == "es" || code == "spa") {
-        return QStringLiteral("es-ES");
+        return {QStringLiteral("es-ES"), QStringLiteral("es")};
     }
     if (code == "de") {
-        return QStringLiteral("de-DE");
+        return {QStringLiteral("de-DE"), QStringLiteral("de")};
     }
     if (code == "it") {
-        return QStringLiteral("it-IT");
+        return {QStringLiteral("it-IT"), QStringLiteral("it")};
     }
     if (code == "pt") {
-        return QStringLiteral("pt-PT");
+        return {QStringLiteral("pt-PT"), QStringLiteral("pt")};
     }
     if (code == "ru") {
-        return QStringLiteral("ru-RU");
+        return {QStringLiteral("ru-RU"), QStringLiteral("ru")};
     }
     return {};
 }
@@ -111,11 +111,16 @@ int scriptScore(const QString &text, const QString &languageTag)
 std::vector<std::pair<QString, OcrEngine>> createEngines(const QStringList &languageHints)
 {
     std::vector<std::pair<QString, OcrEngine>> engines;
-    for (const QString &hint : languageHints) {
-        const QString tag = windowsLanguageTag(hint);
+    QStringList triedTags;
+
+    auto addEngine = [&engines, &triedTags](const QString &tag) {
         if (tag.isEmpty()) {
-            continue;
+            return;
         }
+        if (triedTags.contains(tag, Qt::CaseInsensitive)) {
+            return;
+        }
+        triedTags << tag;
         try {
             Language language(tag.toStdWString());
             OcrEngine engine = OcrEngine::TryCreateFromLanguage(language);
@@ -124,6 +129,19 @@ std::vector<std::pair<QString, OcrEngine>> createEngines(const QStringList &lang
             }
         } catch (...) {
         }
+    };
+
+    for (const QString &hint : languageHints) {
+        for (const QString &tag : windowsLanguageTagsForHint(hint)) {
+            addEngine(tag);
+        }
+    }
+
+    try {
+        for (const Language &language : OcrEngine::AvailableRecognizerLanguages()) {
+            addEngine(QString::fromWCharArray(language.LanguageTag().c_str()));
+        }
+    } catch (...) {
     }
 
     OcrEngine engine = OcrEngine::TryCreateFromUserProfileLanguages();
@@ -367,16 +385,35 @@ function GetScriptScore([string]$Text, [string]$LanguageTag) {
     return $score
 }
 $engineCandidates = @()
-foreach ($tag in $LanguageTags) {
-    if ([string]::IsNullOrWhiteSpace($tag)) { continue }
+function AddOcrEngineCandidate([string]$Tag) {
+    if ([string]::IsNullOrWhiteSpace($Tag)) { return }
+    foreach ($candidate in $script:engineCandidates) {
+        if ($candidate.Tag -ieq $Tag) { return }
+    }
     try {
-        $language = [Windows.Globalization.Language]::new($tag)
+        $language = [Windows.Globalization.Language]::new($Tag)
         $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
         if ($null -ne $engine) {
-            $engineCandidates += [PSCustomObject]@{ Tag = $tag; Engine = $engine }
+            $script:engineCandidates += [PSCustomObject]@{ Tag = $Tag; Engine = $engine }
         }
     } catch {
     }
+}
+$requestedTags = @()
+foreach ($tag in $LanguageTags) {
+    if ([string]::IsNullOrWhiteSpace($tag)) { continue }
+    $requestedTags += $tag
+    AddOcrEngineCandidate $tag
+}
+$availableRecognizerTags = @()
+try {
+    foreach ($language in [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages) {
+        if ($null -ne $language -and -not [string]::IsNullOrWhiteSpace($language.LanguageTag)) {
+            $availableRecognizerTags += $language.LanguageTag
+            AddOcrEngineCandidate $language.LanguageTag
+        }
+    }
+} catch {
 }
 try {
     $userEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
@@ -409,7 +446,10 @@ foreach ($candidate in $engineCandidates) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($bestText)) {
-    throw 'No text was recognized in the screenshot.'
+    $requested = (($requestedTags | Select-Object -Unique) -join ', ')
+    $available = (($availableRecognizerTags | Select-Object -Unique) -join ', ')
+    if ([string]::IsNullOrWhiteSpace($available)) { $available = 'none' }
+    throw "No text was recognized in the screenshot. Requested OCR languages: $requested. Installed OCR languages: $available."
 }
 Write-Output $bestText
 )ps1");
@@ -419,8 +459,7 @@ QStringList windowsOcrLanguageTags(const QStringList &languageHints)
 {
     QStringList tags;
     for (const QString &hint : languageHints) {
-        const QString tag = windowsLanguageTag(hint);
-        if (!tag.isEmpty()) {
+        for (const QString &tag : windowsLanguageTagsForHint(hint)) {
             tags << tag;
         }
     }
