@@ -30,6 +30,7 @@ protected:
 private:
     QRect normalizedSelection() const;
     QImage croppedSelection() const;
+    QImage captureSelection(const QRect &selection) const;
 
     QScreen *m_screen;
     QPixmap m_screenPixmap;

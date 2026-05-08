@@ -5,10 +5,114 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
+#include <QTimer>
+#include <QVector>
 
 #if defined(Q_OS_MACOS)
 #include <ApplicationServices/ApplicationServices.h>
+#include <dlfcn.h>
 #endif
+
+namespace {
+#if defined(Q_OS_MACOS)
+bool closeTo(qreal a, qreal b)
+{
+    return qAbs(a - b) < 2.0;
+}
+
+CGDirectDisplayID displayIdForScreen(const QScreen *screen)
+{
+    if (!screen) {
+        return CGMainDisplayID();
+    }
+
+    uint32_t displayCount = 0;
+    if (CGGetActiveDisplayList(0, nullptr, &displayCount) != kCGErrorSuccess || displayCount == 0) {
+        return CGMainDisplayID();
+    }
+
+    QVector<CGDirectDisplayID> displays;
+    displays.resize(int(displayCount));
+    if (CGGetActiveDisplayList(displayCount, displays.data(), &displayCount) != kCGErrorSuccess) {
+        return CGMainDisplayID();
+    }
+
+    const QRect geometry = screen->geometry();
+    const qreal dpr = screen->devicePixelRatio();
+    for (CGDirectDisplayID display : displays) {
+        const CGRect bounds = CGDisplayBounds(display);
+        const QRectF logicalBounds(bounds.origin.x / dpr,
+                                   bounds.origin.y / dpr,
+                                   bounds.size.width / dpr,
+                                   bounds.size.height / dpr);
+        if (closeTo(logicalBounds.x(), geometry.x())
+            && closeTo(logicalBounds.y(), geometry.y())
+            && closeTo(logicalBounds.width(), geometry.width())
+            && closeTo(logicalBounds.height(), geometry.height())) {
+            return display;
+        }
+
+        const QRectF unscaledBounds(bounds.origin.x,
+                                    bounds.origin.y,
+                                    bounds.size.width,
+                                    bounds.size.height);
+        if (closeTo(unscaledBounds.x(), geometry.x())
+            && closeTo(unscaledBounds.y(), geometry.y())
+            && closeTo(unscaledBounds.width(), geometry.width())
+            && closeTo(unscaledBounds.height(), geometry.height())) {
+            return display;
+        }
+    }
+
+    return CGMainDisplayID();
+}
+
+QImage qImageFromCgImage(CGImageRef cgImage)
+{
+    if (!cgImage) {
+        return {};
+    }
+
+    const int width = int(CGImageGetWidth(cgImage));
+    const int height = int(CGImageGetHeight(cgImage));
+    if (width <= 0 || height <= 0) {
+        return {};
+    }
+
+    QImage image(width, height, QImage::Format_RGBA8888);
+    image.fill(Qt::transparent);
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(image.bits(),
+                                                 size_t(width),
+                                                 size_t(height),
+                                                 8,
+                                                 size_t(image.bytesPerLine()),
+                                                 colorSpace,
+                                                 kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) {
+        return {};
+    }
+
+    CGContextTranslateCTM(context, 0, height);
+    CGContextScaleCTM(context, 1, -1);
+    CGContextDrawImage(context, CGRectMake(0, 0, width, height), cgImage);
+    CGContextRelease(context);
+    return image;
+}
+
+CGImageRef createDisplayImage(CGDirectDisplayID displayId)
+{
+    using CreateImageFn = CGImageRef (*)(CGDirectDisplayID);
+    static CreateImageFn createImage = reinterpret_cast<CreateImageFn>(dlsym(RTLD_DEFAULT, "CGDisplayCreateImage"));
+    if (!createImage) {
+        return nullptr;
+    }
+    return createImage(displayId);
+}
+#endif
+}
 
 ScreenshotOverlay::ScreenshotOverlay(QWidget *parent)
     : QWidget(parent)
@@ -52,7 +156,7 @@ void ScreenshotOverlay::begin()
     }
 
     setGeometry(m_screen->geometry());
-    showFullScreen();
+    show();
     raise();
     activateWindow();
     setFocus(Qt::OtherFocusReason);
@@ -71,6 +175,12 @@ void ScreenshotOverlay::keyPressEvent(QKeyEvent *event)
 
 void ScreenshotOverlay::mousePressEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::RightButton) {
+        emit captureCancelled();
+        close();
+        deleteLater();
+        return;
+    }
     if (event->button() != Qt::LeftButton) {
         return;
     }
@@ -105,14 +215,17 @@ void ScreenshotOverlay::mouseReleaseEvent(QMouseEvent *event)
         return;
     }
 
-    const QImage image = croppedSelection();
-    if (image.isNull()) {
-        emit captureFailed(QStringLiteral("Screenshot crop failed."));
-    } else {
-        emit captureFinished(image);
-    }
-    close();
-    deleteLater();
+    hide();
+    QTimer::singleShot(80, this, [this, selection]() {
+        const QImage image = captureSelection(selection);
+        if (image.isNull()) {
+            emit captureFailed(QStringLiteral("Screenshot crop failed."));
+        } else {
+            emit captureFinished(image);
+        }
+        close();
+        deleteLater();
+    });
 }
 
 void ScreenshotOverlay::paintEvent(QPaintEvent *event)
@@ -161,4 +274,37 @@ QImage ScreenshotOverlay::croppedSelection() const
         return {};
     }
     return m_screenPixmap.copy(pixelRect).toImage();
+}
+
+QImage ScreenshotOverlay::captureSelection(const QRect &selection) const
+{
+#if defined(Q_OS_MACOS)
+    if (!m_screen || selection.isEmpty()) {
+        return {};
+    }
+
+    const qreal scaleFactor = m_screen->devicePixelRatio();
+    const CGRect cropRect = CGRectIntegral(CGRectMake(selection.x() * scaleFactor,
+                                                      selection.y() * scaleFactor,
+                                                      selection.width() * scaleFactor,
+                                                      selection.height() * scaleFactor));
+    const CGDirectDisplayID displayId = displayIdForScreen(m_screen);
+    CGImageRef displayImage = createDisplayImage(displayId);
+    if (!displayImage) {
+        return {};
+    }
+
+    CGImageRef croppedImage = CGImageCreateWithImageInRect(displayImage, cropRect);
+    CGImageRelease(displayImage);
+    if (!croppedImage) {
+        return {};
+    }
+
+    const QImage image = qImageFromCgImage(croppedImage);
+    CGImageRelease(croppedImage);
+    return image;
+#else
+    Q_UNUSED(selection)
+    return croppedSelection();
+#endif
 }
