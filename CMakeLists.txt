@@ -54,6 +54,8 @@ set(PROJECT_SOURCES
         src/core/l10n.h
         src/core/languagedetector.cpp
         src/core/languagedetector.h
+        src/core/tempfilemanager.cpp
+        src/core/tempfilemanager.h
         src/core/translationresult.h
         src/ocr/ocrservice.cpp
         src/ocr/ocrservice.h
