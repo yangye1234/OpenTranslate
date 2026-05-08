@@ -64,7 +64,6 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     , m_generalPageLayout(nullptr)
     , m_servicesPageLayout(nullptr)
     , m_shortcutsPageLayout(nullptr)
-    , m_advancedPageLayout(nullptr)
     , m_privacyPageLayout(nullptr)
     , m_aboutPageLayout(nullptr)
 {
@@ -692,8 +691,7 @@ void SettingsWidget::createExtendedSettingsUi()
     cacheButtons->addWidget(m_exportCacheButton);
     cacheButtons->addWidget(m_importCacheButton);
     dataLayout->addLayout(cacheButtons);
-    m_advancedPageLayout->addWidget(m_dataGroup);
-    m_advancedPageLayout->addStretch(1);
+    m_privacyPageLayout->addWidget(m_dataGroup);
 
     m_historyGroup = new QGroupBox(this);
     auto *historyLayout = new QVBoxLayout(m_historyGroup);
@@ -737,6 +735,7 @@ void SettingsWidget::setupCategorizedSettingsUi()
 
     m_tabButtons = new QButtonGroup(navFrame);
     m_tabButtons->setExclusive(true);
+    navLayout->addStretch(1);
 
     auto addNavButton = [this, navLayout](const QString &objectName, int index, QStyle::StandardPixmap icon) {
         QToolButton *button = createTabButton(objectName, index, icon);
@@ -747,16 +746,14 @@ void SettingsWidget::setupCategorizedSettingsUi()
     addNavButton("settingsTabGeneral", 0, QStyle::SP_ComputerIcon);
     addNavButton("settingsTabServices", 1, QStyle::SP_DriveNetIcon);
     addNavButton("settingsTabShortcuts", 2, QStyle::SP_CommandLink);
-    addNavButton("settingsTabAdvanced", 3, QStyle::SP_FileDialogDetailedView);
-    addNavButton("settingsTabPrivacy", 4, QStyle::SP_DialogApplyButton);
-    addNavButton("settingsTabAbout", 5, QStyle::SP_MessageBoxInformation);
+    addNavButton("settingsTabPrivacy", 3, QStyle::SP_DialogApplyButton);
+    addNavButton("settingsTabAbout", 4, QStyle::SP_MessageBoxInformation);
     navLayout->addStretch(1);
 
     m_pageStack = new QStackedWidget(this);
     m_generalPageLayout = createSettingsPage("settingsPageGeneral");
     m_servicesPageLayout = createSettingsPage("settingsPageServices");
     m_shortcutsPageLayout = createSettingsPage("settingsPageShortcuts");
-    m_advancedPageLayout = createSettingsPage("settingsPageAdvanced");
     m_privacyPageLayout = createSettingsPage("settingsPagePrivacy");
     m_aboutPageLayout = createSettingsPage("settingsPageAbout");
 
@@ -891,7 +888,6 @@ void SettingsWidget::applyLanguage(AppLanguage language)
     setTabText("settingsTabGeneral", "settings.tab.general");
     setTabText("settingsTabServices", "settings.tab.services");
     setTabText("settingsTabShortcuts", "settings.tab.shortcuts");
-    setTabText("settingsTabAdvanced", "settings.tab.advanced");
     setTabText("settingsTabPrivacy", "settings.tab.privacy");
     setTabText("settingsTabAbout", "settings.tab.about");
 

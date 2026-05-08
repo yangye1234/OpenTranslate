@@ -110,7 +110,6 @@ private:
     QVBoxLayout *m_generalPageLayout;
     QVBoxLayout *m_servicesPageLayout;
     QVBoxLayout *m_shortcutsPageLayout;
-    QVBoxLayout *m_advancedPageLayout;
     QVBoxLayout *m_privacyPageLayout;
     QVBoxLayout *m_aboutPageLayout;
 };
