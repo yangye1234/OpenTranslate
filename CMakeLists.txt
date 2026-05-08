@@ -78,6 +78,7 @@ set(PROJECT_SOURCES
         src/ui/translate.cpp
         src/ui/translate.h
         src/ui/translate.ui
+        resources.qrc
         ${TS_FILES}
 )
 
