@@ -3,11 +3,18 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrl>
 #include <QtGlobal>
+
+#if defined(Q_OS_WIN)
+#include <windows.h>
+#include <mmsystem.h>
+#endif
 
 namespace {
 QString youdaoTtsLanguageCode(const QString &language)
@@ -77,6 +84,35 @@ QString audioFileSuffix(const QString &audioUrl, const QString &contentType)
     }
     return QStringLiteral(".mp3");
 }
+
+#if defined(Q_OS_WIN)
+QString mciEscapePath(const QString &path)
+{
+    QString escaped = path;
+    escaped.replace('"', QStringLiteral("\"\""));
+    return escaped;
+}
+
+QString mciErrorString(MCIERROR error)
+{
+    wchar_t buffer[256] = {};
+    if (mciGetErrorStringW(error, buffer, 256)) {
+        return QString::fromWCharArray(buffer).trimmed();
+    }
+    return QStringLiteral("MCI error %1").arg(error);
+}
+
+MCIERROR sendMciCommand(const QString &command, QString *response = nullptr)
+{
+    wchar_t buffer[256] = {};
+    const std::wstring wideCommand = command.toStdWString();
+    const MCIERROR error = mciSendStringW(wideCommand.c_str(), response ? buffer : nullptr, 256, nullptr);
+    if (response) {
+        *response = QString::fromWCharArray(buffer).trimmed();
+    }
+    return error;
+}
+#endif
 }
 
 SpeechPlayer::SpeechPlayer(QObject *parent)
@@ -190,21 +226,39 @@ void SpeechPlayer::playLocalFile(const QString &filePath)
 #if defined(Q_OS_MACOS)
     m_process.start("afplay", {filePath});
 #elif defined(Q_OS_WIN)
-    const QString fileUri = QUrl::fromLocalFile(filePath).toString();
-    const QString script = QString(
-        "$ErrorActionPreference = 'Stop'; "
-        "Add-Type -AssemblyName PresentationCore; "
-        "$p = New-Object System.Windows.Media.MediaPlayer; "
-        "$p.Open([Uri]::new($args[0])); "
-        "$openDeadline = (Get-Date).AddSeconds(10); "
-        "while (-not $p.NaturalDuration.HasTimeSpan -and (Get-Date) -lt $openDeadline) { Start-Sleep -Milliseconds 100 }; "
-        "if (-not $p.NaturalDuration.HasTimeSpan) { $p.Close(); Write-Error 'Audio file could not be opened.'; exit 2 }; "
-        "$p.Play(); "
-        "$duration = $p.NaturalDuration.TimeSpan; "
-        "$playDeadline = (Get-Date).Add($duration).AddSeconds(2); "
-        "while ($p.Position -lt $duration -and (Get-Date) -lt $playDeadline) { Start-Sleep -Milliseconds 100 }; "
-        "$p.Close();");
-    m_process.start("powershell", {"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script, fileUri});
+    closeMciPlayback();
+    m_mciAlias = QStringLiteral("opentranslate_audio_%1")
+                     .arg(QString::fromLatin1(QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5)
+                                                  .toHex()
+                                                  .left(12)));
+
+    const QString escapedPath = mciEscapePath(QFileInfo(filePath).absoluteFilePath());
+    const QString deviceType = filePath.endsWith(QStringLiteral(".wav"), Qt::CaseInsensitive)
+                                   ? QStringLiteral("waveaudio")
+                                   : QStringLiteral("mpegvideo");
+    MCIERROR error = sendMciCommand(QStringLiteral("open \"%1\" type %2 alias %3")
+                                        .arg(escapedPath, deviceType, m_mciAlias));
+    if (error != 0) {
+        error = sendMciCommand(QStringLiteral("open \"%1\" alias %2").arg(escapedPath, m_mciAlias));
+    }
+    if (error != 0) {
+        const QString message = mciErrorString(error);
+        m_mciAlias.clear();
+        emit errorOccurred(QStringLiteral("Audio playback failed: %1").arg(message));
+        return;
+    }
+
+    error = sendMciCommand(QStringLiteral("play %1").arg(m_mciAlias));
+    if (error != 0) {
+        const QString message = mciErrorString(error);
+        closeMciPlayback();
+        emit errorOccurred(QStringLiteral("Audio playback failed: %1").arg(message));
+        return;
+    }
+
+    setPlaying(true);
+    QTimer::singleShot(150, this, &SpeechPlayer::pollMciPlayback);
+    return;
 #else
     Q_UNUSED(filePath);
     emit errorOccurred("Audio playback is not supported on this platform yet.");
@@ -216,6 +270,46 @@ void SpeechPlayer::playLocalFile(const QString &filePath)
         return;
     }
     setPlaying(true);
+}
+
+void SpeechPlayer::pollMciPlayback()
+{
+#if defined(Q_OS_WIN)
+    if (m_mciAlias.isEmpty() || !m_isPlaying) {
+        return;
+    }
+
+    QString mode;
+    const MCIERROR error = sendMciCommand(QStringLiteral("status %1 mode").arg(m_mciAlias), &mode);
+    if (error != 0) {
+        const QString message = mciErrorString(error);
+        closeMciPlayback();
+        setPlaying(false);
+        if (!m_stopRequested) {
+            emit errorOccurred(QStringLiteral("Audio playback failed: %1").arg(message));
+        }
+        return;
+    }
+
+    if (mode.compare(QStringLiteral("playing"), Qt::CaseInsensitive) == 0) {
+        QTimer::singleShot(150, this, &SpeechPlayer::pollMciPlayback);
+        return;
+    }
+
+    closeMciPlayback();
+    setPlaying(false);
+#endif
+}
+
+void SpeechPlayer::closeMciPlayback()
+{
+#if defined(Q_OS_WIN)
+    if (m_mciAlias.isEmpty()) {
+        return;
+    }
+    sendMciCommand(QStringLiteral("close %1").arg(m_mciAlias));
+    m_mciAlias.clear();
+#endif
 }
 
 bool SpeechPlayer::canUseDictionaryFallback(const QString &text, const QString &language) const
@@ -231,7 +325,12 @@ void SpeechPlayer::stop()
         m_process.kill();
         m_process.waitForFinished(500);
     }
+    if (!m_mciAlias.isEmpty()) {
+        m_stopRequested = true;
+        closeMciPlayback();
+    }
     setPlaying(false);
+    m_stopRequested = false;
 }
 
 void SpeechPlayer::setPlaying(bool playing)

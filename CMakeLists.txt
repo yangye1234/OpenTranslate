@@ -116,6 +116,7 @@ target_compile_definitions(OpenTranslate PRIVATE OPENTRANSLATE_VERSION="${PROJEC
 
 if(WIN32)
     target_sources(OpenTranslate PRIVATE src/ocr/windows/windowsocrservice.cpp)
+    target_link_libraries(OpenTranslate PRIVATE winmm)
     set(OPENTRANSLATE_CPPWINRT_INCLUDE_DIR "")
     set(_opentranslate_windows_sdk_roots)
     if(DEFINED ENV{WindowsSdkDir})
