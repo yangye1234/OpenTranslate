@@ -15,7 +15,7 @@ QString en(const QString &key)
     if (key == "dialog.tooltip.screenshot") return "Screenshot translate";
     if (key == "dialog.tooltip.pin") return "Pin on top";
     if (key == "dialog.tooltip.settings") return "Open settings";
-    if (key == "dialog.error.no_selection") return "No selected text found.";
+    if (key == "dialog.error.no_selection") return "No selected text found. Confirm the focused app allows copying selected text.";
     if (key == "dialog.error.selection_permission") return "Grant Accessibility permission in the system prompt or System Settings, then retry selection translation.";
     if (key == "dialog.hotkey.fallback.swap") return "Swap hotkey failed, reverted to default.";
     if (key == "dialog.hotkey.fallback.pin") return "On-top hotkey failed, reverted to default.";
@@ -148,7 +148,7 @@ QString zhCN(const QString &key)
     if (key == "dialog.tooltip.screenshot") return "截图翻译";
     if (key == "dialog.tooltip.pin") return "窗口置顶";
     if (key == "dialog.tooltip.settings") return "打开设置";
-    if (key == "dialog.error.no_selection") return "未获取到选中文本。";
+    if (key == "dialog.error.no_selection") return "未获取到选中文本，请确认当前应用允许复制选中文本。";
     if (key == "dialog.error.selection_permission") return "请在系统弹窗或系统设置中授予“辅助功能”权限，然后重试翻译选中文本。";
     if (key == "dialog.hotkey.fallback.swap") return "语言互转快捷键注册失败，已回退默认。";
     if (key == "dialog.hotkey.fallback.pin") return "置顶快捷键注册失败，已回退默认。";
@@ -281,7 +281,7 @@ QString zhTW(const QString &key)
     if (key == "dialog.tooltip.screenshot") return "截圖翻譯";
     if (key == "dialog.tooltip.pin") return "視窗置頂";
     if (key == "dialog.tooltip.settings") return "開啟設定";
-    if (key == "dialog.error.no_selection") return "未取得選取文字。";
+    if (key == "dialog.error.no_selection") return "未取得選取文字，請確認目前應用允許複製選取文字。";
     if (key == "dialog.error.selection_permission") return "請在系統彈窗或系統設定中授予「輔助使用」權限，然後重試翻譯選取文字。";
     if (key == "dialog.hotkey.fallback.swap") return "語言互轉快捷鍵註冊失敗，已回退預設。";
     if (key == "dialog.hotkey.fallback.pin") return "置頂快捷鍵註冊失敗，已回退預設。";

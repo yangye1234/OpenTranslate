@@ -23,6 +23,10 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QTimer>
+#include <QUuid>
+
+#include <functional>
+#include <memory>
 
 #if defined(Q_OS_MACOS)
 #include <ApplicationServices/ApplicationServices.h>
@@ -876,9 +880,15 @@ void Translate::requestSelectionText()
 {
     QClipboard *clipboard = QApplication::clipboard();
     QMimeData *previousMime = cloneMimeData(clipboard->mimeData());
+    const QString sentinel = QStringLiteral("__OpenTranslateSelectionProbe_%1__")
+                                 .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+
+    auto *sentinelMime = new QMimeData();
+    sentinelMime->setText(sentinel);
+    clipboard->setMimeData(sentinelMime);
 
     if (!sendNativeCopyShortcut()) {
-        delete previousMime;
+        clipboard->setMimeData(previousMime);
         show();
         activateWindow();
         raise();
@@ -886,20 +896,38 @@ void Translate::requestSelectionText()
         return;
     }
 
-    QTimer::singleShot(180, this, [this, clipboard, previousMime]() {
-        const QString selectedText = clipboard->text().trimmed();
-        clipboard->setMimeData(previousMime);
-        show();
-        activateWindow();
-        raise();
-        if (selectedText.isEmpty()) {
+    auto attempts = std::make_shared<int>(0);
+    auto pollClipboard = std::make_shared<std::function<void()>>();
+    *pollClipboard = [this, clipboard, previousMime, sentinel, attempts, pollClipboard]() {
+        const QString copiedText = clipboard->text();
+        if (copiedText != sentinel) {
+            const QString selectedText = copiedText.trimmed();
+            clipboard->setMimeData(previousMime);
+            show();
+            activateWindow();
+            raise();
+            if (selectedText.isEmpty()) {
+                ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
+                return;
+            }
+            ui->OriginalText->setText(selectedText);
+            ui->OriginalText->setFocus();
+            triggerTranslate();
+            return;
+        }
+
+        ++(*attempts);
+        if (*attempts >= 20) {
+            clipboard->setMimeData(previousMime);
+            show();
+            activateWindow();
+            raise();
             ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
             return;
         }
-        ui->OriginalText->setText(selectedText);
-        ui->OriginalText->setFocus();
-        triggerTranslate();
-    });
+        QTimer::singleShot(50, this, *pollClipboard);
+    };
+    QTimer::singleShot(50, this, *pollClipboard);
 }
 
 QStringList Translate::ocrLanguageHints() const
