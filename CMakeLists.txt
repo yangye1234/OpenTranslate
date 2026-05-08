@@ -33,41 +33,51 @@ set(TS_FILES OpenTranslate_zh_CN.ts)
 set(APP_ICON_ICO "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/app.ico")
 set(APP_ICON_ICNS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/app.icns")
 
+set(PROJECT_INCLUDE_DIRS
+        src/audio
+        src/config
+        src/core
+        src/ocr
+        src/providers
+        src/storage
+        src/ui
+)
+
 set(PROJECT_SOURCES
-        appconfig.h
-        baidutranslatorservice.h
-        baidutranslatorservice.cpp
-        configstore.h
-        configstore.cpp
-        deepltranslatorservice.h
-        deepltranslatorservice.cpp
-        dictionarytranslatorservice.h
-        dictionarytranslatorservice.cpp
-        languagedetector.h
-        languagedetector.cpp
-        l10n.h
-        l10n.cpp
-        main.cpp
-        ocrservice.cpp
-        ocrservice.h
-        openaitranslatorservice.h
-        openaitranslatorservice.cpp
-        screenshotoverlay.cpp
-        screenshotoverlay.h
-        settingswidget.cpp
-        settingswidget.h
-        settingswidget.ui
-        speechplayer.cpp
-        speechplayer.h
-        translationcachestore.cpp
-        translationcachestore.h
-        translationhistorystore.cpp
-        translationhistorystore.h
-        translationresult.h
-        translatorservice.h
-        translate.cpp
-        translate.h
-        translate.ui
+        src/main.cpp
+        src/audio/speechplayer.cpp
+        src/audio/speechplayer.h
+        src/config/appconfig.h
+        src/config/configstore.cpp
+        src/config/configstore.h
+        src/core/l10n.cpp
+        src/core/l10n.h
+        src/core/languagedetector.cpp
+        src/core/languagedetector.h
+        src/core/translationresult.h
+        src/ocr/ocrservice.cpp
+        src/ocr/ocrservice.h
+        src/ocr/screenshotoverlay.cpp
+        src/ocr/screenshotoverlay.h
+        src/providers/baidutranslatorservice.cpp
+        src/providers/baidutranslatorservice.h
+        src/providers/deepltranslatorservice.cpp
+        src/providers/deepltranslatorservice.h
+        src/providers/dictionarytranslatorservice.cpp
+        src/providers/dictionarytranslatorservice.h
+        src/providers/openaitranslatorservice.cpp
+        src/providers/openaitranslatorservice.h
+        src/providers/translatorservice.h
+        src/storage/translationcachestore.cpp
+        src/storage/translationcachestore.h
+        src/storage/translationhistorystore.cpp
+        src/storage/translationhistorystore.h
+        src/ui/settingswidget.cpp
+        src/ui/settingswidget.h
+        src/ui/settingswidget.ui
+        src/ui/translate.cpp
+        src/ui/translate.h
+        src/ui/translate.ui
         ${TS_FILES}
 )
 
@@ -100,6 +110,7 @@ else()
 endif()
 
 target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network QHotkey::QHotkey)
+target_include_directories(OpenTranslate PRIVATE ${PROJECT_INCLUDE_DIRS})
 
 if(WIN32)
     if(EXISTS "${APP_ICON_ICO}")
@@ -116,8 +127,8 @@ if(WIN32)
 endif()
 
 if(APPLE)
-    target_sources(OpenTranslate PRIVATE macvisionocrservice.mm)
-    set_source_files_properties(macvisionocrservice.mm PROPERTIES
+    target_sources(OpenTranslate PRIVATE src/ocr/macos/macvisionocrservice.mm)
+    set_source_files_properties(src/ocr/macos/macvisionocrservice.mm PROPERTIES
         LANGUAGE CXX
         COMPILE_FLAGS "-x objective-c++"
     )

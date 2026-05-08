@@ -1,5 +1,5 @@
 #include "translate.h"
-#include "./ui_translate.h"
+#include "ui_translate.h"
 #include "baidutranslatorservice.h"
 #include "configstore.h"
 #include "deepltranslatorservice.h"
