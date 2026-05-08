@@ -282,6 +282,7 @@ if ($null -eq $engine) {
 if ($null -eq $engine) {
     throw 'No Windows OCR language is available. Install OCR language features in Windows Settings.'
 }
+$ImagePath = [System.IO.Path]::GetFullPath($ImagePath)
 $file = AwaitOperation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($ImagePath)) ([Windows.Storage.StorageFile])
 $stream = AwaitOperation ($file.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
 $decoder = AwaitOperation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
@@ -361,8 +362,8 @@ public:
             QStringLiteral("-ExecutionPolicy"),
             QStringLiteral("Bypass"),
             QStringLiteral("-File"),
-            scriptPath,
-            imagePath,
+            QDir::toNativeSeparators(scriptPath),
+            QDir::toNativeSeparators(imagePath),
         };
         arguments.append(windowsOcrLanguageTags(languageHints));
 
