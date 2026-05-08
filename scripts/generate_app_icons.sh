@@ -2,7 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC_PNG="${1:-$ROOT_DIR/assets/app-icon-1024.png}"
+DEFAULT_SRC_PNG="$ROOT_DIR/assets/app-icon2.png"
+if [[ ! -f "$DEFAULT_SRC_PNG" ]]; then
+  DEFAULT_SRC_PNG="$ROOT_DIR/assets/app-icon-1024.png"
+fi
+SRC_PNG="${1:-$DEFAULT_SRC_PNG}"
 ICON_DIR="$ROOT_DIR/assets/icons"
 
 if [[ ! -f "$SRC_PNG" ]]; then
@@ -27,9 +31,45 @@ if [[ "$OSTYPE" == darwin* ]]; then
   sips -z 256 256 "$SRC_PNG" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
   sips -z 512 512 "$SRC_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
   sips -z 512 512 "$SRC_PNG" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
-  cp "$SRC_PNG" "$ICONSET_DIR/icon_512x512@2x.png"
+  sips -z 1024 1024 "$SRC_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
 
-  iconutil -c icns "$ICONSET_DIR" -o "$ICON_DIR/app.icns"
+  xattr -cr "$ICONSET_DIR" 2>/dev/null || true
+  if iconutil -c icns "$ICONSET_DIR" -o "$ICON_DIR/app.icns"; then
+    :
+  elif command -v node >/dev/null 2>&1; then
+    node - "$ICONSET_DIR" "$ICON_DIR/app.icns" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const [iconsetDir, outputFile] = process.argv.slice(2);
+const items = [
+  ['icp4', 'icon_16x16.png'],
+  ['icp5', 'icon_32x32.png'],
+  ['icp6', 'icon_32x32@2x.png'],
+  ['ic07', 'icon_128x128.png'],
+  ['ic08', 'icon_256x256.png'],
+  ['ic09', 'icon_512x512.png'],
+  ['ic10', 'icon_512x512@2x.png'],
+];
+
+const chunks = items.map(([type, fileName]) => {
+  const data = fs.readFileSync(path.join(iconsetDir, fileName));
+  const header = Buffer.alloc(8);
+  header.write(type, 0, 4, 'ascii');
+  header.writeUInt32BE(data.length + 8, 4);
+  return Buffer.concat([header, data]);
+});
+
+const totalLength = 8 + chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+const header = Buffer.alloc(8);
+header.write('icns', 0, 4, 'ascii');
+header.writeUInt32BE(totalLength, 4);
+fs.writeFileSync(outputFile, Buffer.concat([header, ...chunks]));
+NODE
+  else
+    echo "iconutil failed and Node.js is not available to create macOS .icns fallback."
+    exit 1
+  fi
   rm -rf "$ICONSET_DIR"
   echo "Generated macOS icon: $ICON_DIR/app.icns"
 fi
