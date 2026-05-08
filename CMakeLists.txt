@@ -113,6 +113,8 @@ target_link_libraries(OpenTranslate PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${Q
 target_include_directories(OpenTranslate PRIVATE ${PROJECT_INCLUDE_DIRS})
 
 if(WIN32)
+    target_sources(OpenTranslate PRIVATE src/ocr/windows/windowsocrservice.cpp)
+    target_link_libraries(OpenTranslate PRIVATE windowsapp)
     if(EXISTS "${APP_ICON_ICO}")
         set(APP_ICON_ICO_RC "${APP_ICON_ICO}")
         configure_file(

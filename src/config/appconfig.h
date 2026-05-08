@@ -71,7 +71,7 @@ inline ShortcutConfig defaultShortcutsForCurrentPlatform()
 #if defined(Q_OS_MACOS)
     return {"Ctrl+Meta+T", "Ctrl+Meta+F", "Ctrl+,", "Ctrl+Meta+D", "Ctrl+Meta+Space", "Ctrl+Meta+A"};
 #elif defined(Q_OS_WIN)
-    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D", "Ctrl+Alt+Space", ""};
+    return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D", "Ctrl+Alt+Space", "Ctrl+Alt+A"};
 #else
     return {"Ctrl+Alt+T", "Ctrl+Alt+F", "Ctrl+Alt+,", "Ctrl+Alt+D", "Ctrl+Alt+Space", ""};
 #endif

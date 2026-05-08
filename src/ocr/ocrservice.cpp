@@ -7,7 +7,7 @@ OcrService::OcrService(QObject *parent)
 
 OcrService::~OcrService() = default;
 
-#if !defined(Q_OS_MACOS)
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
 namespace {
 class UnsupportedOcrService : public OcrService
 {
