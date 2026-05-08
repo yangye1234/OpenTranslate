@@ -22,7 +22,6 @@
 #include <QMimeData>
 #include <QProcess>
 #include <QPushButton>
-#include <QTextEdit>
 #include <QTimer>
 
 #if defined(Q_OS_MACOS)
@@ -151,7 +150,6 @@ Translate::Translate(QWidget *parent)
     , m_openAIService(new OpenAITranslatorService(this))
     , m_deepLService(new DeepLTranslatorService(this))
     , m_dictionaryService(new DictionaryTranslatorService(this))
-    , m_dictionaryDetailsService(new DictionaryTranslatorService(this))
     , m_ocrService(OcrService::create(this))
     , m_speechPlayer(new SpeechPlayer(this))
     , m_swapHotkey(nullptr)
@@ -161,7 +159,6 @@ Translate::Translate(QWidget *parent)
     , m_speechHotkey(nullptr)
     , m_screenshotHotkey(nullptr)
     , m_isTranslating(false)
-    , m_dictionaryPanelExpanded(false)
 {
     ui->setupUi(this);
     
@@ -171,7 +168,7 @@ Translate::Translate(QWidget *parent)
     // 设置窗口背景透明
     setAttribute(Qt::WA_TranslucentBackground);
     
-    resize(460, 168);
+    resize(460, 138);
     applyDialogStyle();
     ui->Translation->setReadOnly(true);
     ui->Convert->setAutoDefault(false);
@@ -182,14 +179,6 @@ Translate::Translate(QWidget *parent)
     ui->PlayAudio->setDefault(false);
     ui->Settings->setAutoDefault(false);
     ui->Settings->setDefault(false);
-    ui->DictionaryToggle->setAutoDefault(false);
-    ui->DictionaryToggle->setDefault(false);
-    ui->DictionaryAudio->setAutoDefault(false);
-    ui->DictionaryAudio->setDefault(false);
-    ui->DictionaryAudio->setVisible(false);
-    ui->DictionaryDetails->setVisible(false);
-    ui->DictionaryDetails->setReadOnly(true);
-    setDictionaryPanelExpanded(false);
 
     auto *languageView = new QListView(ui->SelectLanguage);
     languageView->setFrameShape(QFrame::NoFrame);
@@ -215,12 +204,6 @@ Translate::Translate(QWidget *parent)
     connect(ui->PlayAudio, &QPushButton::clicked, this, &Translate::toggleSpeech);
     connect(ui->Settings, &QPushButton::clicked, this, &Translate::openSettings);
     connect(ui->Convert, &QPushButton::clicked, this, &Translate::swapLanguagePair);
-    connect(ui->DictionaryToggle, &QPushButton::toggled, this, &Translate::setDictionaryPanelExpanded);
-    connect(ui->DictionaryAudio, &QPushButton::clicked, this, [this]() {
-        if (!m_dictionaryAudioUrl.isEmpty()) {
-            m_speechPlayer->play(QString(), QString(), m_dictionaryAudioUrl);
-        }
-    });
     connect(ui->OriginalText, &QLineEdit::returnPressed, this, &Translate::triggerTranslate);
     connect(m_baiduService, &BaiduTranslatorService::translationFinished,
             this, &Translate::onTranslationFinished);
@@ -230,8 +213,6 @@ Translate::Translate(QWidget *parent)
             this, &Translate::onTranslationFinished);
     connect(m_dictionaryService, &DictionaryTranslatorService::translationFinished,
             this, &Translate::onTranslationFinished);
-    connect(m_dictionaryDetailsService, &DictionaryTranslatorService::translationFinished,
-            this, &Translate::onDictionaryDetailsFinished);
     connect(m_speechPlayer, &SpeechPlayer::playingChanged,
             this, &Translate::onSpeechPlayingChanged);
     connect(m_speechPlayer, &SpeechPlayer::errorOccurred, this, [this](const QString &message) {
@@ -247,7 +228,6 @@ Translate::Translate(QWidget *parent)
     m_openAIService->setConfig(m_config);
     m_deepLService->setConfig(m_config);
     m_dictionaryService->setConfig(m_config);
-    configureDictionaryDetailsService();
 #if defined(Q_OS_MACOS)
     setupMacNativeHotkeyMappings();
 #endif
@@ -360,7 +340,6 @@ void Translate::onConfigSaved(const AppConfig &config)
     m_openAIService->setConfig(m_config);
     m_deepLService->setConfig(m_config);
     m_dictionaryService->setConfig(m_config);
-    configureDictionaryDetailsService();
     applyShortcuts(m_config.shortcuts);
 }
 
@@ -406,11 +385,7 @@ void Translate::triggerTranslate()
     }
 
     const QString provider = activeProviderKey();
-    setDictionaryDetailsLoading();
     const auto cached = m_config.cache.enabled ? m_translationCache.find(provider, from, to, sourceText) : std::nullopt;
-    if (cached.has_value() || provider != "dictionary") {
-        startDictionaryDetailsLookup(sourceText, from, to);
-    }
     if (cached.has_value()) {
         m_pendingSourceText.clear();
         m_pendingFrom.clear();
@@ -457,9 +432,6 @@ void Translate::onTranslationFinished(const TranslationResult &result)
         m_lastTranslatedText = result.translatedText;
         m_lastTargetLanguage = result.targetLanguage.isEmpty() ? m_pendingTo : result.targetLanguage;
         m_lastAudioUrl = result.audioUrl;
-        if (result.provider == "dictionary") {
-            updateDictionaryDetails(result);
-        }
         if (m_config.history.enabled) {
             TranslationHistoryEntry entry;
             entry.sourceText = m_pendingSourceText;
@@ -496,9 +468,6 @@ void Translate::onTranslationFinished(const TranslationResult &result)
         }
     }
 
-    if (result.provider == "dictionary") {
-        updateDictionaryDetails(result);
-    }
     ui->Translation->setText(result.errorMessage);
     m_lastTranslatedText.clear();
     m_lastTargetLanguage.clear();
@@ -507,121 +476,6 @@ void Translate::onTranslationFinished(const TranslationResult &result)
     m_pendingFrom.clear();
     m_pendingTo.clear();
     m_pendingProvider.clear();
-}
-
-void Translate::onDictionaryDetailsFinished(const TranslationResult &result)
-{
-    if (!m_pendingDictionaryText.isEmpty()
-        && !result.queryText.isEmpty()
-        && result.queryText != m_pendingDictionaryText) {
-        return;
-    }
-    updateDictionaryDetails(result);
-}
-
-void Translate::startDictionaryDetailsLookup(const QString &text, const QString &from, const QString &to)
-{
-    m_pendingDictionaryText = text.trimmed();
-    m_dictionaryAudioUrl.clear();
-    ui->DictionaryAudio->setVisible(false);
-    if (m_pendingDictionaryText.isEmpty()) {
-        setDictionaryDetailsMessage(L10n::text(m_config.appLanguage, "dialog.dictionary.empty"));
-        return;
-    }
-    configureDictionaryDetailsService();
-    m_dictionaryDetailsService->translate(m_pendingDictionaryText, from, to);
-}
-
-void Translate::setDictionaryPanelExpanded(bool expanded)
-{
-    m_dictionaryPanelExpanded = expanded;
-    ui->DictionaryDetails->setVisible(expanded);
-    ui->DictionaryToggle->setChecked(expanded);
-    ui->DictionaryToggle->setText(QString("%1 %2")
-                                      .arg(L10n::text(m_config.appLanguage, "dialog.dictionary.title"),
-                                           expanded ? QStringLiteral("▾") : QStringLiteral("▸")));
-
-    const int targetHeight = expanded ? 340 : 168;
-    setMinimumSize(460, targetHeight);
-    setMaximumSize(460, targetHeight);
-    resize(460, targetHeight);
-}
-
-void Translate::setDictionaryDetailsLoading()
-{
-    m_dictionaryAudioUrl.clear();
-    ui->DictionaryAudio->setVisible(false);
-    ui->DictionaryDetails->setPlainText(L10n::text(m_config.appLanguage, "dialog.dictionary.loading"));
-}
-
-void Translate::setDictionaryDetailsMessage(const QString &message)
-{
-    m_dictionaryAudioUrl.clear();
-    ui->DictionaryAudio->setVisible(false);
-    ui->DictionaryDetails->setPlainText(message);
-}
-
-void Translate::updateDictionaryDetails(const TranslationResult &result)
-{
-    const QString details = formatDictionaryDetails(result);
-    if (details.trimmed().isEmpty()) {
-        setDictionaryDetailsMessage(result.errorMessage.trimmed().isEmpty()
-                                        ? L10n::text(m_config.appLanguage, "dialog.dictionary.empty")
-                                        : result.errorMessage);
-        return;
-    }
-
-    m_dictionaryAudioUrl = result.audioUrl;
-    for (const DictionaryPhonetic &phonetic : result.dictionaryPhonetics) {
-        if (!phonetic.audioUrl.trimmed().isEmpty()) {
-            m_dictionaryAudioUrl = phonetic.audioUrl;
-            break;
-        }
-    }
-    ui->DictionaryAudio->setVisible(!m_dictionaryAudioUrl.isEmpty());
-    ui->DictionaryDetails->setPlainText(details);
-}
-
-QString Translate::formatDictionaryDetails(const TranslationResult &result) const
-{
-    QStringList blocks;
-    if (!result.dictionaryPhonetics.isEmpty() || !result.phoneticText.trimmed().isEmpty()) {
-        QStringList lines;
-    for (const DictionaryPhonetic &phonetic : result.dictionaryPhonetics) {
-        if (!phonetic.value.trimmed().isEmpty()) {
-            const QString label = phonetic.label == "phonetic"
-                                      ? dictionarySectionTitle("phonetics")
-                                      : phonetic.label;
-            lines << QString("%1 [%2]").arg(label, phonetic.value);
-        }
-    }
-        if (lines.isEmpty() && !result.phoneticText.trimmed().isEmpty()) {
-            lines << result.phoneticText.trimmed();
-        }
-        blocks << dictionarySectionTitle("phonetics") + "\n" + lines.join("\n");
-    }
-
-    for (const DictionarySection &section : result.dictionarySections) {
-        if (!section.lines.isEmpty()) {
-            blocks << dictionarySectionTitle(section.title) + "\n" + section.lines.join("\n");
-        }
-    }
-
-    return blocks.join("\n\n");
-}
-
-QString Translate::dictionarySectionTitle(const QString &title) const
-{
-    const QString key = "dialog.dictionary.section." + title;
-    const QString text = L10n::text(m_config.appLanguage, key);
-    return text == key ? title : text;
-}
-
-void Translate::configureDictionaryDetailsService()
-{
-    AppConfig detailsConfig = m_config;
-    detailsConfig.dictionary.enabled = true;
-    m_dictionaryDetailsService->setConfig(detailsConfig);
 }
 
 QString Translate::activeProviderKey() const
@@ -771,8 +625,6 @@ void Translate::applyLanguage(AppLanguage language)
                                                        : "dialog.tooltip.play_audio"));
     ui->Fixed->setToolTip(L10n::text(language, "dialog.tooltip.pin"));
     ui->Settings->setToolTip(L10n::text(language, "dialog.tooltip.settings"));
-    ui->DictionaryAudio->setToolTip(L10n::text(language, "dialog.dictionary.play_audio"));
-    setDictionaryPanelExpanded(m_dictionaryPanelExpanded);
 }
 
 void Translate::applyDialogStyle()
@@ -781,7 +633,7 @@ void Translate::applyDialogStyle()
         "QDialog {"
         "  background: transparent;"
         "}"
-        "QComboBox, QLineEdit, QTextEdit {"
+        "QComboBox, QLineEdit {"
         "  background: rgba(210, 214, 220, 0.96);"
         "  color: #30343C;"
         "  border: 1px solid rgba(156, 163, 173, 0.95);"
@@ -824,7 +676,7 @@ void Translate::applyDialogStyle()
         "  border-top: 7px solid #505762;"
         "  margin-right: 6px;"
         "}"
-        "QLineEdit:read-only, QTextEdit:read-only {"
+        "QLineEdit:read-only {"
         "  background: rgba(201, 206, 214, 0.96);"
         "}"
         "QPushButton {"

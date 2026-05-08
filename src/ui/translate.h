@@ -45,7 +45,6 @@ private slots:
     void onConfigSaved(const AppConfig &config);
     void triggerTranslate();
     void onTranslationFinished(const TranslationResult &result);
-    void onDictionaryDetailsFinished(const TranslationResult &result);
     void swapLanguagePair();
     void toggleSpeech();
     void onSpeechPlayingChanged(bool playing);
@@ -67,14 +66,6 @@ private:
     bool hasRegisteredHotkeys() const;
     void requestSelectionText();
     QStringList ocrLanguageHints() const;
-    void startDictionaryDetailsLookup(const QString &text, const QString &from, const QString &to);
-    void setDictionaryPanelExpanded(bool expanded);
-    void setDictionaryDetailsLoading();
-    void setDictionaryDetailsMessage(const QString &message);
-    void updateDictionaryDetails(const TranslationResult &result);
-    QString formatDictionaryDetails(const TranslationResult &result) const;
-    QString dictionarySectionTitle(const QString &title) const;
-    void configureDictionaryDetailsService();
 
     Ui::Translate *ui;
     QPoint m_dragPosition;
@@ -84,7 +75,6 @@ private:
     OpenAITranslatorService *m_openAIService;
     DeepLTranslatorService *m_deepLService;
     DictionaryTranslatorService *m_dictionaryService;
-    DictionaryTranslatorService *m_dictionaryDetailsService;
     OcrService *m_ocrService;
     SpeechPlayer *m_speechPlayer;
     QHotkey *m_swapHotkey;
@@ -94,15 +84,12 @@ private:
     QHotkey *m_speechHotkey;
     QHotkey *m_screenshotHotkey;
     bool m_isTranslating;
-    bool m_dictionaryPanelExpanded;
     QString m_hotkeyStatusMessage;
     TranslationCacheStore m_translationCache;
     QString m_pendingSourceText;
     QString m_pendingFrom;
     QString m_pendingTo;
     QString m_pendingProvider;
-    QString m_pendingDictionaryText;
-    QString m_dictionaryAudioUrl;
     QString m_lastTranslatedText;
     QString m_lastTargetLanguage;
     QString m_lastAudioUrl;
