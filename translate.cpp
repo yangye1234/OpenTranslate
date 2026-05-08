@@ -91,7 +91,17 @@ void setupMacNativeHotkeyMappings()
 
 bool sendNativeCopyShortcut()
 {
-    if (!AXIsProcessTrusted()) {
+    const void *keys[] = { kAXTrustedCheckOptionPrompt };
+    const void *values[] = { kCFBooleanTrue };
+    CFDictionaryRef options = CFDictionaryCreate(kCFAllocatorDefault,
+                                                 keys,
+                                                 values,
+                                                 1,
+                                                 &kCFCopyStringDictionaryKeyCallBacks,
+                                                 &kCFTypeDictionaryValueCallBacks);
+    const bool trusted = AXIsProcessTrustedWithOptions(options);
+    CFRelease(options);
+    if (!trusted) {
         return false;
     }
 
