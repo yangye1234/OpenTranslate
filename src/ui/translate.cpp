@@ -143,6 +143,15 @@ bool sendNativeCopyShortcut()
     return false;
 }
 #endif
+
+bool selectionHotkeyModifiersStillPressed()
+{
+#if defined(Q_OS_WIN)
+    return (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0 || (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+#else
+    return false;
+#endif
+}
 }
 
 Translate::Translate(QWidget *parent)
@@ -880,54 +889,70 @@ void Translate::requestSelectionText()
 {
     QClipboard *clipboard = QApplication::clipboard();
     QMimeData *previousMime = cloneMimeData(clipboard->mimeData());
-    const QString sentinel = QStringLiteral("__OpenTranslateSelectionProbe_%1__")
-                                 .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
 
-    auto *sentinelMime = new QMimeData();
-    sentinelMime->setText(sentinel);
-    clipboard->setMimeData(sentinelMime);
+    auto startCopy = std::make_shared<std::function<void()>>();
+    *startCopy = [this, clipboard, previousMime]() {
+        const QString sentinel = QStringLiteral("__OpenTranslateSelectionProbe_%1__")
+                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
 
-    if (!sendNativeCopyShortcut()) {
-        clipboard->setMimeData(previousMime);
-        show();
-        activateWindow();
-        raise();
-        ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.selection_permission"));
-        return;
-    }
+        auto *sentinelMime = new QMimeData();
+        sentinelMime->setText(sentinel);
+        clipboard->setMimeData(sentinelMime);
 
-    auto attempts = std::make_shared<int>(0);
-    auto pollClipboard = std::make_shared<std::function<void()>>();
-    *pollClipboard = [this, clipboard, previousMime, sentinel, attempts, pollClipboard]() {
-        const QString copiedText = clipboard->text();
-        if (copiedText != sentinel) {
-            const QString selectedText = copiedText.trimmed();
+        if (!sendNativeCopyShortcut()) {
             clipboard->setMimeData(previousMime);
             show();
             activateWindow();
             raise();
-            if (selectedText.isEmpty()) {
+            ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.selection_permission"));
+            return;
+        }
+
+        auto attempts = std::make_shared<int>(0);
+        auto pollClipboard = std::make_shared<std::function<void()>>();
+        *pollClipboard = [this, clipboard, previousMime, sentinel, attempts, pollClipboard]() {
+            const QString copiedText = clipboard->text();
+            if (copiedText != sentinel) {
+                const QString selectedText = copiedText.trimmed();
+                clipboard->setMimeData(previousMime);
+                show();
+                activateWindow();
+                raise();
+                if (selectedText.isEmpty()) {
+                    ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
+                    return;
+                }
+                ui->OriginalText->setText(selectedText);
+                ui->OriginalText->setFocus();
+                triggerTranslate();
+                return;
+            }
+
+            ++(*attempts);
+            if (*attempts >= 20) {
+                clipboard->setMimeData(previousMime);
+                show();
+                activateWindow();
+                raise();
                 ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
                 return;
             }
-            ui->OriginalText->setText(selectedText);
-            ui->OriginalText->setFocus();
-            triggerTranslate();
-            return;
-        }
-
-        ++(*attempts);
-        if (*attempts >= 20) {
-            clipboard->setMimeData(previousMime);
-            show();
-            activateWindow();
-            raise();
-            ui->Translation->setText(L10n::text(m_config.appLanguage, "dialog.error.no_selection"));
-            return;
-        }
+            QTimer::singleShot(50, this, *pollClipboard);
+        };
         QTimer::singleShot(50, this, *pollClipboard);
     };
-    QTimer::singleShot(50, this, *pollClipboard);
+
+    auto releaseAttempts = std::make_shared<int>(0);
+    auto waitForHotkeyRelease = std::make_shared<std::function<void()>>();
+    *waitForHotkeyRelease = [this, startCopy, releaseAttempts, waitForHotkeyRelease]() {
+        if (selectionHotkeyModifiersStillPressed() && *releaseAttempts < 12) {
+            ++(*releaseAttempts);
+            QTimer::singleShot(50, this, *waitForHotkeyRelease);
+            return;
+        }
+        (*startCopy)();
+    };
+    QTimer::singleShot(50, this, *waitForHotkeyRelease);
 }
 
 QStringList Translate::ocrLanguageHints() const
