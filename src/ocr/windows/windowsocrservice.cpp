@@ -215,6 +215,7 @@ QString powerShellOcrScript()
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
+[void][System.Reflection.Assembly]::LoadWithPartialName('System.Runtime.WindowsRuntime')
 $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime]
 $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType=WindowsRuntime]
 $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
@@ -224,17 +225,32 @@ $null = [Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, Cont
 $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType=WindowsRuntime]
 $null = [Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType=WindowsRuntime]
 $null = [Windows.Globalization.Language, Windows.Globalization, ContentType=WindowsRuntime]
-$asTaskMethods = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 }
+$asTaskMethod = [System.WindowsRuntimeSystemExtensions].GetMethods() |
+    Where-Object {
+        $_.Name -eq 'AsTask' -and
+        $_.IsGenericMethodDefinition -and
+        $_.GetParameters().Count -eq 1 -and
+        $_.GetParameters()[0].ParameterType.FullName -eq 'Windows.Foundation.IAsyncOperation`1'
+    } |
+    Select-Object -First 1
+if ($null -eq $asTaskMethod) {
+    throw 'Could not find Windows Runtime AsTask IAsyncOperation overload.'
+}
 function AwaitOperation($Operation, [Type]$ResultType) {
-    foreach ($method in $asTaskMethods) {
-        try {
-            $task = $method.MakeGenericMethod($ResultType).Invoke($null, @($Operation))
-            $task.Wait()
-            return $task.Result
-        } catch {
-        }
+    if ($null -eq $Operation) {
+        throw 'Windows Runtime OCR operation is null.'
     }
-    throw 'Could not await Windows Runtime OCR operation.'
+    try {
+        $task = $asTaskMethod.MakeGenericMethod($ResultType).Invoke($null, [object[]]@($Operation))
+        return $task.GetAwaiter().GetResult()
+    } catch [System.Reflection.TargetInvocationException] {
+        if ($_.Exception.InnerException) {
+            throw $_.Exception.InnerException
+        }
+        throw
+    } catch {
+        throw "Could not await Windows Runtime OCR operation: $($_.Exception.Message)"
+    }
 }
 $engine = $null
 foreach ($tag in $LanguageTags) {
